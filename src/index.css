@@ -1,0 +1,25 @@
+body {
+  background-color: #2d2d2d;
+  color: wheat;
+  font-family: Arial, sans-serif;
+  align-items: center;
+  display: grid;
+  text-align: center;
+}
+
+h1 {
+  font-size: 24px;
+  justify-self: center;
+  border: 2px solid wheat;
+  border-radius: 5px;
+  padding: 0.5em 1em;
+  margin: 2em;
+  max-width: 10em;
+  background-color: #444444;
+}
+
+p {
+  /* color: #c6c6c6; */
+  font-size: 16px;
+  font-weight: bold;
+}
