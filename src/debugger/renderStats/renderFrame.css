@@ -1,0 +1,55 @@
+.framer {
+  width: 15em;
+  height: fit-content;
+  max-height: 15em;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 999;
+  position: relative;
+  top: 0;
+  left: 80%;
+  background-color: #212429;
+  border: 1px solid #313131;
+  color: wheat;
+  padding: 10px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+}
+.framer_slot {
+  border-bottom: 1px solid #313131;
+  padding: 5px 0;
+  height: fit-content;
+  font-size: small;
+}
+.framer_title {
+  background-color: #313131;
+  color: #dcdcdc;
+  padding: 5px 10px;
+  font-weight: bold;
+  text-align: center;
+}
+.framer_fps {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #313131;
+  padding: 5px 0;
+}
+.framer_fps_counter {
+  margin-right: 10px;
+}
+.framer_fps_visual {
+  flex-grow: 1;
+  height: 20px;
+  background-color: #313131;
+}
+.framer_title_close {
+  position: absolute;
+  right: 13px;
+  top: 7px;
+  font-size: 20px;
+  color: brown;
+  cursor: pointer;
+}
+.framer_title_drag {
+  cursor: move;
+}
