@@ -1,7 +1,7 @@
 .framer {
   width: 15em;
   height: fit-content;
-  max-height: 15em;
+  max-height: 20em;
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 999;

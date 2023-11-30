@@ -46,9 +46,9 @@ export default class AuroraCamera {
     else if (cameraData.keyPressed.has("a")) this.x -= this.speed;
     if (cameraData.keyPressed.has("w")) this.y -= this.speed;
     else if (cameraData.keyPressed.has("s")) this.y += this.speed;
-    if (cameraData.keyPressed.has("n"))
+    if (cameraData.keyPressed.has("ArrowDown"))
       this.zoom > this.minZoom && (this.zoom -= 0.01 * Math.log(this.zoom + 1));
-    else if (cameraData.keyPressed.has("m"))
+    else if (cameraData.keyPressed.has("ArrowUp"))
       this.zoom < this.maxZoom && (this.zoom += 0.01 * Math.log(this.zoom + 1));
 
     this.projectionViewMatrix = Mat4.create()

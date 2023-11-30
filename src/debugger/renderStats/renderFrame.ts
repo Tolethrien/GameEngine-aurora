@@ -15,6 +15,7 @@ export default class RenderFrame {
   private static cpuTime = 0;
   private static gpuTime = 0;
   private static quadCount = 0;
+  private static MAXquadCount = 0;
   private static startTime = 0;
   private static lastFrameTime = 0;
   private static lastStartTime = 0;
@@ -100,8 +101,9 @@ export default class RenderFrame {
       this.currFrame = 0;
     } else this.currFrame++;
   }
-  public static setQuadCount(quads: number) {
+  public static setQuadCount(quads: number, max: number) {
     this.quadCount = quads;
+    this.MAXquadCount = max;
   }
   private static calculateFrames() {
     if (this.frameTimes.length === SAVED_FRAMES) this.frameTimes.shift();
@@ -116,6 +118,7 @@ export default class RenderFrame {
   }
   private static updateGameData() {
     this.statsList[3].innerText = `QuadCount: ${this.quadCount}`;
+    this.statsList[4].innerText = `QuadsLimit: ${this.MAXquadCount}`;
   }
   private static updateFrame() {
     const fps = String(
@@ -127,7 +130,7 @@ export default class RenderFrame {
       .toFixed(2)}MS`;
     this.statsList[1].innerText = `CPU time: ${this.cpuTime.toFixed(2)}ms`;
     this.statsList[2].innerText = `GPU time: ${this.gpuTime.toFixed(2)}ms`;
-    this.statsList[4].innerText = `Stats Refresh rate: ${REFRESH_RATE}s`;
+    this.statsList[5].innerText = `Stats Refresh rate: ${REFRESH_RATE}s`;
   }
   private static updateCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

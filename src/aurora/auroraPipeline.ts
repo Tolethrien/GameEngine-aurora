@@ -62,7 +62,7 @@ export default class AuroraPipeline {
   }
   public static getVertexBufferLayoutGroup(groupName: string) {
     const group = this.vertexBuffersLeyoutGroups.get(groupName);
-    if (!group) throw new Error("");
+    if (!group) throw new Error("not grup");
     return group.map((name) => this.vertexBuffersLeyouts.get(name));
   }
   public static createRenderPipelineLayout(
