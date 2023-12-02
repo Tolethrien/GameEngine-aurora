@@ -24,7 +24,7 @@ export default class AuroraCamera {
     this.view = Mat4.create().lookAt([0, 0, 1], [0, 0, 0], [0, 1, 0]);
     this.x = this.canvas.width / 2;
     this.y = this.canvas.height / 2;
-    this.speed = 5;
+    this.speed = 15;
     this.zoom = 1;
     this.maxZoom = 10;
     this.minZoom = 0.1;

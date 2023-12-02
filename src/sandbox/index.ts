@@ -6,7 +6,6 @@ import map from "../assets/tilemap3.png";
 import "../index.css";
 import RenderFrame from "../debugger/renderStats/renderFrame";
 const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
-
 const createAurora = async () => {
   await Aurora.initialize(canvas);
   RenderFrame.Initialize();
@@ -28,8 +27,18 @@ const draw = () => {
     isTexture: 1,
     size: { height: 132, width: 132 },
     textureToUse: 0,
-    tint: new Uint8ClampedArray([255, 5, 5]),
+    tint: new Uint8ClampedArray([255, 255, 255]),
   });
+  AuroraBatcher.drawQuad({
+    position: { x: 600, y: 100 },
+    alpha: 255,
+    crop: new Float32Array([0, 0, 32 / 1280, 32 / 832]),
+    isTexture: 1,
+    size: { height: 132, width: 132 },
+    textureToUse: 0,
+    tint: new Uint8ClampedArray([255, 255, 255]),
+  });
+  // AuroraBatcher.applyScreenShader("grayscale", 1);
 
   RenderFrame.setQuadCount(
     AuroraBatcher.numberOfQuadsInBatch,

@@ -37,15 +37,21 @@ let data = getVertexData(props.vi,props.pos,props.size,props.crop);
  out.colorOrTexture = props.colorOrTexture;
   return out;  
 };
-
+struct FragmenOut{
+@location(0) one: vec4f,
+@location(1) two: vec4f
+}
 @fragment
 // zwykla tekstura i tint
-fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
+fn fragmentMain(props:VertexOutput) -> FragmenOut{
 var convertedColor = convertColor(props.color);
 var textures = textureSample(texture2DOne,textureSampOne,props.textureCoord,i32(props.textureIndex));
 
 let color = mix(convertedColor,textures * convertedColor,f32(props.colorOrTexture));
-return color;
+var out:FragmenOut;
+out.one = color;
+out.two = color;
+return out;
 }
 // debug border
 // fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{

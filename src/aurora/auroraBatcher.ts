@@ -2,12 +2,19 @@ import Aurora from "./auroraCore";
 import AuroraPipeline from "./auroraPipeline";
 import AuroraShader from "./auroraShader";
 import uniShader from "./shaders/universalShader.wgsl?raw";
-import testShader from "./shaders/testShader.wgsl?raw";
-import { normalizeColor } from "../math/math";
+import testShader from "./shaders/globalEffect.wgsl?raw";
+import compositionShader from "./shaders/compositionShader.wgsl?raw";
+import { clamp, normalizeColor } from "../math/math";
 import AuroraTexture, { GPULoadedTexture } from "./auroraTexture";
 import AuroraBuffer from "./auroraBuffer";
 import AuroraCamera from "./auroraCamera";
-// import { normalizeColor } from "../utils/utils";
+//pipeline-game:
+//compute: [sceen -> offscreen] => [bloom -> bloomTexture] => [lights -> lightmap]
+//composition: [offscreen -> compositeTexture] => [bloomTexture -> compositeTexture] => [lightmap -> compositeTexture]
+// finalEffect: [compositeTexture -> canvas] / [compositeTexture -> offscreen(zmiana nastepuje tu) -> canvas]
+//total: 5 drawCalls
+//------------------
+//pipeline-UI
 interface SpriteProps {
   position: { x: number; y: number };
   size: { width: number; height: number };
@@ -24,6 +31,13 @@ const OPTIONS_TEMPLATE = {
   maxQuadPerBatch: 10000,
   customCamera: false,
 };
+
+type ScreenEffects = keyof typeof SCREEN_EFFECTS;
+const SCREEN_EFFECTS = {
+  none: 0,
+  grayscale: 1,
+  sepia: 2,
+};
 const VERTEX_ATT_COUNT = 8;
 const ADDDATA_ATT_COUNT = 6;
 const INDICIES_PER_QUAD = 6;
@@ -36,22 +50,33 @@ export default class AuroraBatcher {
   private static indexBuffer: GPUBuffer;
   private static addDataBuffer: GPUBuffer;
   private static projectionBuffer: GPUBuffer;
-  public static vertices: Float32Array;
-  public static addData: Uint32Array;
-  public static projection: Float32Array;
+  private static globalEffectBuffer: GPUBuffer;
+  private static vertices: Float32Array;
+  private static addData: Uint32Array;
+  private static globalEffect: Float32Array;
+  private static pipelinesInFrame: GPUCommandBuffer[] = [];
+  private static pipelinesToUseInFrame = {
+    bloom: false,
+    light: false,
+    globalEffect: false,
+  };
   private static options: BatcherOptions;
   private static offscreenTexture: GPULoadedTexture;
+  private static compositeTexture: GPULoadedTexture;
+  private static bloomTexture: GPULoadedTexture;
+  private static lightMapTexture: GPULoadedTexture;
+  private static batcherTextureArray: GPULoadedTexture;
   private static camera: AuroraCamera | undefined;
   private static customcameraMatrix: Float32Array = new Float32Array([
     1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
   ]);
   private static textureAtlas: TextureAtlas & { name: string };
-
   public static createBatcher(options?: BatcherOptions) {
     this.options = this.setOptions(options);
     this.createBatcherTextures();
-    this.createUniversalPipeline();
-    this.createTestPipeline();
+    this.createSceenPipeline();
+    this.createCompositePipeline();
+    this.createFinalPipeline();
   }
 
   public static async setTextures(texture: TextureAtlas) {
@@ -59,17 +84,32 @@ export default class AuroraBatcher {
   }
   public static startBatch() {
     this.numberOfQuadsInBatch = 0;
+    this.pipelinesInFrame = [];
+    this.pipelinesToUseInFrame = {
+      bloom: false,
+      light: false,
+      globalEffect: false,
+    };
   }
   public static endBatch() {
     !this.options.customCamera && this.camera.update();
-    const universalEncoder = this.startUniversalPipeline();
-    const test = this.startTestPipeline();
-    Aurora.device.queue.submit([universalEncoder.finish(), test.finish()]);
+    //compute
+    this.startSceenPipeline();
+    //composition
+    this.startCompositePipeline();
+    //final
+    this.startFinalPipeline();
+    Aurora.device.queue.submit(this.pipelinesInFrame);
   }
   public static setCameraBuffer(matrix: Float32Array) {
     this.customcameraMatrix = matrix;
   }
-
+  public static applyScreenShader(effect: ScreenEffects, intesity: number) {
+    const intens = clamp(intesity, 0, 1);
+    this.pipelinesToUseInFrame.globalEffect = true;
+    this.globalEffect[0] = SCREEN_EFFECTS[effect];
+    this.globalEffect[1] = intens;
+  }
   public static drawQuad({
     position,
     size,
@@ -108,12 +148,28 @@ export default class AuroraBatcher {
     return template;
   }
   private static createBatcherTextures() {
-    this.offscreenTexture = AuroraTexture.createEmptyTexture(
+    // this.offscreenTexture = AuroraTexture.createEmptyTexture(
+    //   Aurora.canvas.width,
+    //   Aurora.canvas.height
+    // );
+    this.compositeTexture = AuroraTexture.createEmptyTexture(
       Aurora.canvas.width,
       Aurora.canvas.height
     );
+    // this.lightMapTexture = AuroraTexture.createEmptyTexture(
+    //   Aurora.canvas.width,
+    //   Aurora.canvas.height
+    // );
+    // this.bloomTexture = AuroraTexture.createEmptyTexture(
+    //   Aurora.canvas.width,
+    //   Aurora.canvas.height
+    // );
+    this.batcherTextureArray = AuroraTexture.createEmptyTextureArray(3, {
+      height: Aurora.canvas.width,
+      width: Aurora.canvas.width,
+    });
   }
-  private static createUniversalPipeline() {
+  private static createSceenPipeline() {
     this.vertices = new Float32Array(this.maxNumberOfQuads * VERTEX_ATT_COUNT);
     this.addData = new Uint32Array(this.maxNumberOfQuads * ADDDATA_ATT_COUNT);
     AuroraPipeline.createVertexBufferLayout("universalVertexBufferLayout", {
@@ -246,15 +302,31 @@ export default class AuroraBatcher {
       pipelineLayout: AuroraPipeline.getRenderPipelineLayout("universal"),
       pipelineName: "universal pipeline",
       shader: AuroraShader.getSader("universalShader"),
+      colorTargets: [
+        AuroraPipeline.getColorTargetTemplate("standard"),
+        AuroraPipeline.getColorTargetTemplate("standard"),
+      ],
     });
   }
 
-  private static startUniversalPipeline() {
+  private static startSceenPipeline() {
     const universalEncoder = Aurora.device.createCommandEncoder();
     const commandPass = universalEncoder.beginRenderPass({
       colorAttachments: [
         {
-          view: this.offscreenTexture.texture.createView(),
+          view: this.batcherTextureArray.texture.createView({
+            arrayLayerCount: 1,
+            baseArrayLayer: 0,
+          }),
+          loadOp: "clear",
+          storeOp: "store",
+          clearValue: [0.5, 0.5, 0.5, 1],
+        },
+        {
+          view: this.batcherTextureArray.texture.createView({
+            arrayLayerCount: 1,
+            baseArrayLayer: 1,
+          }),
           loadOp: "clear",
           storeOp: "store",
           clearValue: [0.5, 0.5, 0.5, 1],
@@ -279,9 +351,15 @@ export default class AuroraBatcher {
     commandPass.setIndexBuffer(this.indexBuffer, "uint32");
     commandPass.drawIndexed(INDICIES_PER_QUAD, this.numberOfQuadsInBatch);
     commandPass.end();
-    return universalEncoder;
+    this.pipelinesInFrame.push(universalEncoder.finish());
   }
-  private static createTestPipeline() {
+  private static createFinalPipeline() {
+    this.globalEffect = new Float32Array([0, 0.5]);
+    this.globalEffectBuffer = AuroraBuffer.createDynamicBuffer({
+      bufferType: "uniform",
+      label: "",
+      typedArr: this.globalEffect,
+    });
     AuroraShader.addShader("testShader", testShader);
     AuroraPipeline.addBindGroup({
       name: "empty",
@@ -305,16 +383,38 @@ export default class AuroraBatcher {
         entries: [
           {
             binding: 0,
-            resource: this.offscreenTexture.sampler,
+            resource: this.compositeTexture.sampler,
           },
           {
             binding: 1,
-            resource: this.offscreenTexture.texture.createView(),
+            resource: this.compositeTexture.texture.createView(),
           },
         ],
       },
     });
-    AuroraPipeline.createRenderPipelineLayout("test", ["empty"]);
+    AuroraPipeline.addBindGroup({
+      name: "globalEffect",
+      data: {
+        entries: [
+          { binding: 0, resource: { buffer: this.globalEffectBuffer } },
+        ],
+        label: "globalEffectBindData",
+      },
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            buffer: { type: "uniform" },
+            visibility: GPUShaderStage.FRAGMENT,
+          },
+        ],
+        label: "globalEffectBindLayout",
+      },
+    });
+    AuroraPipeline.createRenderPipelineLayout("test", [
+      "empty",
+      "globalEffect",
+    ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
       pipelineLayout: AuroraPipeline.getRenderPipelineLayout("test"),
@@ -322,9 +422,11 @@ export default class AuroraBatcher {
       shader: AuroraShader.getSader("testShader"),
     });
   }
-  private static startTestPipeline() {
-    const testEncoder = Aurora.device.createCommandEncoder();
-    const commandPass = testEncoder.beginRenderPass({
+  private static startFinalPipeline() {
+    if (!this.pipelinesToUseInFrame.globalEffect && this.globalEffect[0] !== 0)
+      this.globalEffect[0] = 0;
+    const globalEffectEncoder = Aurora.device.createCommandEncoder();
+    const commandPass = globalEffectEncoder.beginRenderPass({
       colorAttachments: [
         {
           view: Aurora.context.getCurrentTexture().createView(),
@@ -333,6 +435,11 @@ export default class AuroraBatcher {
         },
       ],
     });
+    Aurora.device.queue.writeBuffer(
+      this.globalEffectBuffer,
+      0,
+      this.globalEffect
+    );
     AuroraPipeline.getBindsFromLayout("test").forEach((bind, index) => {
       commandPass.setBindGroup(index, bind);
     });
@@ -340,6 +447,74 @@ export default class AuroraBatcher {
     commandPass.setPipeline(AuroraPipeline.getPipeline("test pipeline"));
     commandPass.draw(6, 1);
     commandPass.end();
-    return testEncoder;
+    this.pipelinesInFrame.push(globalEffectEncoder.finish());
+  }
+  private static createCompositePipeline() {
+    AuroraShader.addShader("compositionShader", compositionShader);
+    AuroraPipeline.addBindGroup({
+      name: "compositionTextures",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d-array" },
+          },
+        ],
+        label: "texture",
+      },
+      data: {
+        label: "textures renderer bind group",
+        entries: [
+          {
+            binding: 0,
+            resource: this.compositeTexture.sampler,
+          },
+          {
+            binding: 1,
+            resource: this.batcherTextureArray.texture.createView(),
+          },
+        ],
+      },
+    });
+    AuroraPipeline.createRenderPipelineLayout("compositionPipelineLayout", [
+      "compositionTextures",
+    ]);
+    AuroraPipeline.createRenderPipeline({
+      buffers: [],
+      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
+        "compositionPipelineLayout"
+      ),
+      pipelineName: "composition pipeline",
+      shader: AuroraShader.getSader("compositionShader"),
+    });
+  }
+  private static startCompositePipeline() {
+    const compositionEncoder = Aurora.device.createCommandEncoder();
+    const commandPass = compositionEncoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: this.compositeTexture.texture.createView(),
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
+    });
+
+    AuroraPipeline.getBindsFromLayout("compositionPipelineLayout").forEach(
+      (bind, index) => {
+        commandPass.setBindGroup(index, bind);
+      }
+    );
+
+    commandPass.setPipeline(AuroraPipeline.getPipeline("composition pipeline"));
+    commandPass.draw(6, 1);
+    commandPass.end();
+    this.pipelinesInFrame.push(compositionEncoder.finish());
   }
 }
