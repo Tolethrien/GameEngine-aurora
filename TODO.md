@@ -15,6 +15,7 @@ moje mysli i pomysły:
 - swiatlo globalne
 - swiatlo dynamiczne
 - bloom
+  depth buffer zamiast sortowania
 
   /\*\*
 

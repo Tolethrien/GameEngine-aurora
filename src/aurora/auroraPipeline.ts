@@ -2,9 +2,9 @@ import Aurora from "./auroraCore";
 interface bindGroupTemplate {
   name: string;
   layout: GPUBindGroupLayoutDescriptor;
-  data: { entries: Iterable<GPUBindGroupEntry>; label: string };
+  data: { entries: Iterable<GPUBindGroupEntry>; label?: string };
 }
-type PipeList = Map<string, GPURenderPipeline>;
+type PipeList = Map<string, GPURenderPipeline | GPUComputePipeline>;
 type BindGroup = Map<
   string,
   { bind: GPUBindGroup; layout: GPUBindGroupLayout }
@@ -65,10 +65,7 @@ export default class AuroraPipeline {
     if (!group) throw new Error("not grup");
     return group.map((name) => this.vertexBuffersLeyouts.get(name));
   }
-  public static createRenderPipelineLayout(
-    layoutName: string,
-    bindGrous: string[]
-  ) {
+  public static createPipelineLayout(layoutName: string, bindGrous: string[]) {
     bindGrous.forEach((bind) => {
       if (!this.bindGroups.has(bind))
         throw new Error(`bind group with name ${bind} dont exist`);
@@ -125,12 +122,42 @@ export default class AuroraPipeline {
       label: layoutName,
     });
   }
-  public static getPipeline(pipelineName: string) {
-    if (this.pipelineList.has(pipelineName))
-      return this.pipelineList.get(pipelineName);
-    else throw new Error(`no render pipeline with that name: ${pipelineName}`);
+  public static createComputePipeline({
+    pipelineName,
+    pipelineLayout,
+    shader,
+  }: {
+    pipelineName: string;
+    pipelineLayout: GPUPipelineLayout;
+    shader: GPUShaderModule;
+  }) {
+    this.pipelineList.set(
+      pipelineName,
+      Aurora.device.createComputePipeline({
+        layout: pipelineLayout,
+        compute: {
+          module: shader,
+          entryPoint: "computeMain",
+        },
+      })
+    );
   }
-  public static getColorTargetTemplate(type: "standard"): GPUColorTargetState {
+
+  public static getPipeline<T extends GPURenderPipeline | GPUComputePipeline>(
+    pipelineName: string
+  ): T {
+    const pipeline = this.pipelineList.get(pipelineName);
+    if (pipeline instanceof GPURenderPipeline) {
+      return pipeline as T;
+    } else if (pipeline instanceof GPUComputePipeline) {
+      return pipeline as T;
+    } else {
+      throw new Error(`no render pipeline with that name: ${pipelineName}`);
+    }
+  }
+  public static getColorTargetTemplate(
+    type: "standard" | "storage"
+  ): GPUColorTargetState {
     switch (type) {
       case "standard":
         return {
@@ -147,6 +174,10 @@ export default class AuroraPipeline {
               operation: "add",
             },
           },
+        };
+      case "storage":
+        return {
+          format: "r32uint",
         };
     }
   }

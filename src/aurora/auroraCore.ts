@@ -24,8 +24,14 @@ export default class Aurora {
     if (!adapter) {
       throw new Error("No appropriate GPUAdapter found.");
     }
-    const device = await adapter.requestDevice();
-
+    // Experimental StorageTexture
+    // requiredFeatures: [
+    // "chromium-experimental-read-write-storage-texture",
+    // "bgra8unorm-storage",
+    // ],
+    const device = await adapter.requestDevice({
+      requiredFeatures: ["bgra8unorm-storage"],
+    });
     context.configure({
       device: device,
       format: navigator.gpu.getPreferredCanvasFormat(),

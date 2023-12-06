@@ -9,12 +9,15 @@ const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
 const createAurora = async () => {
   await Aurora.initialize(canvas);
   RenderFrame.Initialize();
-  const texture = await AuroraTexture.createTextureArray([
+  const texture = await AuroraTexture.createTextureArray("spritesAtlases", [
     { name: "char", url: char },
     { name: "map", url: map },
   ]);
   AuroraBatcher.setTextures(texture);
-  AuroraBatcher.createBatcher();
+  AuroraBatcher.createBatcher({
+    backgroundColor: [0, 0, 0, 255],
+    bloomStrength: 50,
+  });
   draw();
 };
 const draw = () => {
@@ -28,17 +31,23 @@ const draw = () => {
     size: { height: 132, width: 132 },
     textureToUse: 0,
     tint: new Uint8ClampedArray([255, 255, 255]),
+    additionalData: {
+      bloom: 0,
+    },
   });
   AuroraBatcher.drawQuad({
-    position: { x: 600, y: 100 },
+    position: { x: 400, y: 100 },
     alpha: 255,
     crop: new Float32Array([0, 0, 32 / 1280, 32 / 832]),
     isTexture: 1,
     size: { height: 132, width: 132 },
     textureToUse: 0,
     tint: new Uint8ClampedArray([255, 255, 255]),
+    additionalData: {
+      bloom: 1,
+    },
   });
-  // AuroraBatcher.applyScreenShader("grayscale", 1);
+  AuroraBatcher.applyScreenShader("vignette", 1);
 
   RenderFrame.setQuadCount(
     AuroraBatcher.numberOfQuadsInBatch,

@@ -1,5 +1,7 @@
 @group(0) @binding(0) var textureSampOne: sampler;
-@group(0) @binding(1) var texture2DOne: texture_2d_array<f32>;
+@group(0) @binding(1) var textureOffscreen: texture_2d<f32>;
+@group(0) @binding(2) var textureBloom: texture_2d<f32>;
+@group(0) @binding(3) var textureLight: texture_2d<f32>;
 
 struct VertexInput {
   @builtin(vertex_index) vi: u32,
@@ -44,8 +46,21 @@ return out;
 };
 @fragment
 fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
-let textures = textureSample(texture2DOne,textureSampOne,props.coords,props.textureIndex);
-return textures;
+var out:vec4f;
+let baseTexture = textureSample(textureOffscreen,textureSampOne,props.coords);
+let bloomData = textureSample(textureBloom,textureSampOne,props.coords);
+let lightData = textureSample(textureLight,textureSampOne,props.coords);
+
+if(props.textureIndex == 1){
+    out = baseTexture + bloomData;
+}
+else if(props.textureIndex == 2){
+    out = baseTexture * lightData;
+}
+else{
+    out = baseTexture;
+};
+return out;
 }
 
 
