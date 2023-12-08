@@ -9,13 +9,7 @@ import { clamp, normalizeColor } from "../math/math";
 import AuroraTexture, { GPULoadedTexture } from "./auroraTexture";
 import AuroraBuffer from "./auroraBuffer";
 import AuroraCamera from "./auroraCamera";
-//pipeline-game:
-//compute: [sceen -> offscreen] => [bloom -> bloomTexture] => [lights -> lightmap]
-//composition: [offscreen -> compositeTexture] => [bloomTexture -> compositeTexture] => [lightmap -> compositeTexture]
-// finalEffect: [compositeTexture -> canvas] / [compositeTexture -> offscreen(zmiana nastepuje tu) -> canvas]
-//total: 5 drawCalls
-//------------------
-//pipeline-UI
+
 interface SpriteProps {
   position: { x: number; y: number };
   size: { width: number; height: number };
@@ -53,18 +47,19 @@ const INDICIES_PER_QUAD = 6;
 export default class AuroraBatcher {
   public static numberOfQuadsInBatch = 0;
   public static maxNumberOfQuads = OPTIONS_TEMPLATE.maxQuadPerBatch;
-
   private static vertexBuffer: GPUBuffer;
   private static indexBuffer: GPUBuffer;
   private static addDataBuffer: GPUBuffer;
   private static projectionBuffer: GPUBuffer;
   private static globalEffectBuffer: GPUBuffer;
+  private static compositeDataBuffer: GPUBuffer;
   private static bloomXBuffer: GPUBuffer;
   private static bloomYBuffer: GPUBuffer;
-  private static bloomStrength: GPUBuffer;
   private static vertices: Float32Array;
   private static addData: Uint32Array;
   private static globalEffect: Float32Array;
+  private static compositeData: Uint32Array;
+
   private static pipelinesInFrame: GPUCommandBuffer[] = [];
   private static pipelinesToUseInFrame = {
     bloom: false,
@@ -79,6 +74,7 @@ export default class AuroraBatcher {
   private static bloom2Texture: GPULoadedTexture;
   private static bloom3Texture: GPULoadedTexture;
   private static camera: AuroraCamera | undefined;
+  public static test = true;
   private static customcameraMatrix: Float32Array = new Float32Array([
     1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
   ]);
@@ -164,7 +160,7 @@ export default class AuroraBatcher {
 
     return template;
   }
-  private static createBatcherTextures() {
+  private static async createBatcherTextures() {
     this.compositeTexture = AuroraTexture.createEmptyTexture(
       Aurora.canvas.width,
       Aurora.canvas.height,
@@ -349,7 +345,7 @@ export default class AuroraBatcher {
           view: this.offscreenTexture.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          clearValue: [0, 0, 0, 0],
+          clearValue: [0, 0, 0, 1],
         },
         {
           view: this.bloomTexture.texture.createView(),
@@ -473,7 +469,34 @@ export default class AuroraBatcher {
     this.pipelinesInFrame.push(globalEffectEncoder.finish());
   }
   private static createCompositePipeline() {
+    //bloom = 1
+    // lightmap = 2
+    this.compositeData = new Uint32Array([1, 2]);
+    this.compositeDataBuffer = AuroraBuffer.createDynamicBuffer({
+      label: "compositeBuffer",
+      bufferType: "uniform",
+      typedArr: this.compositeData,
+    });
     AuroraShader.addShader("compositionShader", compositionShader);
+    AuroraPipeline.addBindGroup({
+      name: "compositionData",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            buffer: {
+              type: "uniform",
+            },
+          },
+        ],
+      },
+      data: {
+        entries: [
+          { binding: 0, resource: { buffer: this.compositeDataBuffer } },
+        ],
+      },
+    });
     AuroraPipeline.addBindGroup({
       name: "compositionTextures",
       layout: {
@@ -525,6 +548,7 @@ export default class AuroraBatcher {
     });
     AuroraPipeline.createPipelineLayout("compositionPipelineLayout", [
       "compositionTextures",
+      "compositionData",
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
@@ -547,7 +571,11 @@ export default class AuroraBatcher {
         },
       ],
     });
-
+    Aurora.device.queue.writeBuffer(
+      this.compositeDataBuffer,
+      0,
+      this.compositeData
+    );
     AuroraPipeline.getBindsFromLayout("compositionPipelineLayout").forEach(
       (bind, index) => {
         commandPass.setBindGroup(index, bind);
@@ -555,7 +583,11 @@ export default class AuroraBatcher {
     );
 
     commandPass.setPipeline(AuroraPipeline.getPipeline("composition pipeline"));
-    commandPass.draw(6, 3);
+    const numberOfTexturesToDraw = this.compositeData.reduce(
+      (acc, num) => num !== 0 && acc + 1,
+      0
+    );
+    commandPass.draw(6, numberOfTexturesToDraw);
     commandPass.end();
     this.pipelinesInFrame.push(compositionEncoder.finish());
   }
@@ -663,7 +695,7 @@ export default class AuroraBatcher {
     });
   }
   private static startBloomPipeline() {
-    if (!this.pipelinesToUseInFrame.bloom) return;
+    if (!this.test) return;
     const commandEncoder = Aurora.device.createCommandEncoder();
     const commandPass = commandEncoder.beginComputePass();
     //==========

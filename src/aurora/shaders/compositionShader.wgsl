@@ -2,6 +2,7 @@
 @group(0) @binding(1) var textureOffscreen: texture_2d<f32>;
 @group(0) @binding(2) var textureBloom: texture_2d<f32>;
 @group(0) @binding(3) var textureLight: texture_2d<f32>;
+@group(1) @binding(0) var<uniform> compositeData: vec2u;
 
 struct VertexInput {
   @builtin(vertex_index) vi: u32,
@@ -50,18 +51,19 @@ var out:vec4f;
 let baseTexture = textureSample(textureOffscreen,textureSampOne,props.coords);
 let bloomData = textureSample(textureBloom,textureSampOne,props.coords);
 let lightData = textureSample(textureLight,textureSampOne,props.coords);
+if(props.textureIndex == 1 && any(compositeData == vec2u(1))){
+    out = baseTexture + bloomData ;
 
-if(props.textureIndex == 1){
-    out = baseTexture + bloomData;
 }
-else if(props.textureIndex == 2){
+else if(props.textureIndex == 2 && any(compositeData == vec2u(2))){
     out = baseTexture * lightData;
 }
-else{
+else{    
     out = baseTexture;
 };
 return out;
 }
+
 
 
 

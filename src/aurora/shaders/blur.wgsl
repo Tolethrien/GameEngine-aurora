@@ -3,7 +3,7 @@
 @group(0) @binding(2) var outputTex : texture_storage_2d<bgra8unorm, write>;
 @group(0) @binding(3) var<uniform> flipAndDim : vec2u;
 
-var<workgroup> tile : array<array<vec3<f32>, 128>, 4>;
+var<workgroup> tile : array<array<vec4<f32>, 128>, 4>;
 
 @compute @workgroup_size(32, 1, 1)
 fn computeMain(
@@ -30,7 +30,7 @@ var blockDim: u32 = 128 - (filterDim - 1);
         samp,
         (vec2<f32>(loadIndex) + vec2<f32>(0.25, 0.25)) / vec2<f32>(dims),
         0.0
-      ).rgb;
+      ).rgba;
     }
   }
 
@@ -50,9 +50,9 @@ var blockDim: u32 = 128 - (filterDim - 1);
         var acc = vec3(0.0, 0.0, 0.0);
         for (var f = 0; f < i32(filterDim); f++) {
           var i = center + f - filterOffset;
-          acc = acc + (1.0 / f32(filterDim)) * tile[r][i];
+          acc = acc + (1.0 / f32(filterDim)) * tile[r][i].rgb;
         }
-        textureStore(outputTex, writeIndex, vec4(acc, 1.0));
+        textureStore(outputTex, writeIndex, vec4(acc, 1));
       }
     }
   }

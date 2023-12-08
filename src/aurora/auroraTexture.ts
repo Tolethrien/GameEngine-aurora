@@ -14,10 +14,11 @@ export default class AuroraTexture {
   public static createEmptyTexture(
     width: number,
     height: number,
-    label: string
+    label: string,
+    format?: GPUTextureFormat
   ) {
     const texture = Aurora.device.createTexture({
-      format: "bgra8unorm",
+      format: format ?? "bgra8unorm",
       size: {
         width: width,
         height: height,
@@ -28,6 +29,7 @@ export default class AuroraTexture {
         GPUTextureUsage.TEXTURE_BINDING |
         GPUTextureUsage.RENDER_ATTACHMENT,
     });
+
     const sampler = Aurora.device.createSampler();
     return { texture, sampler };
   }
@@ -88,10 +90,11 @@ export default class AuroraTexture {
   public static createStorageTexture(
     width: number,
     height: number,
-    label: string
+    label: string,
+    format?: GPUTextureFormat
   ) {
     const texture = Aurora.device.createTexture({
-      format: "bgra8unorm",
+      format: format ?? "bgra8unorm",
       size: {
         width: width,
         height: height,
@@ -103,6 +106,7 @@ export default class AuroraTexture {
         GPUTextureUsage.RENDER_ATTACHMENT |
         GPUTextureUsage.STORAGE_BINDING,
     });
+
     const sampler = Aurora.device.createSampler();
     return { texture, sampler };
   }
