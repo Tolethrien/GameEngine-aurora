@@ -22,7 +22,7 @@ struct VertexOutput {
 };
 struct FragmenOut{
 @location(0) one: vec4f,
-@location(1) two: vec4f
+@location(1) two: vec4f,
 }
 struct GetVertexData{
 position: vec4f,
@@ -50,7 +50,13 @@ var textures = textureSample(texture2DOne,textureSampOne,props.textureCoord,i32(
 let color = mix(convertedColor,textures * convertedColor,f32(props.colorOrTexture));
 var out:FragmenOut;
 out.one = color;
-if(props.bloom == 1){out.two = color;}else{out.two = vec4f(0,0,0,0);}
+//TODO: zobaczyc czy lepiej z filtrowanie alphy czy nie
+if(props.bloom == 1){
+  out.two = vec4f(color.rgb+2,color.a);
+}
+else {
+out.two = color;
+}
 return out;
 }
 

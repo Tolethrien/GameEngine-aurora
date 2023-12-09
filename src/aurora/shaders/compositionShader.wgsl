@@ -51,12 +51,17 @@ var out:vec4f;
 let baseTexture = textureSample(textureOffscreen,textureSampOne,props.coords);
 let bloomData = textureSample(textureBloom,textureSampOne,props.coords);
 let lightData = textureSample(textureLight,textureSampOne,props.coords);
-if(props.textureIndex == 1 && any(compositeData == vec2u(1))){
-    out = baseTexture + bloomData ;
+if(props.textureIndex == 1){
+    if(any(baseTexture.rgb > vec3f(1))){
+    out = vec4(baseTexture.rgb-2,baseTexture.a) + bloomData ;
+    }
+    else{
+        out = baseTexture + bloomData;
+    }
 
 }
 else if(props.textureIndex == 2 && any(compositeData == vec2u(2))){
-    out = baseTexture * lightData;
+    out = baseTexture;
 }
 else{    
     out = baseTexture;

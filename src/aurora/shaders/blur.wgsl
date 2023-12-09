@@ -4,7 +4,6 @@
 @group(0) @binding(3) var<uniform> flipAndDim : vec2u;
 
 var<workgroup> tile : array<array<vec4<f32>, 128>, 4>;
-
 @compute @workgroup_size(32, 1, 1)
 fn computeMain(
   @builtin(workgroup_id) WorkGroupID : vec3<u32>,
@@ -56,5 +55,5 @@ var blockDim: u32 = 128 - (filterDim - 1);
       }
     }
   }
- 
+
 }

@@ -15,6 +15,7 @@ type PipeLay = Map<
 >;
 type VBGL = Map<string, string[]>;
 type vertexBuffLay = Map<string, GPUVertexBufferLayout>;
+type ColorAttachments = "oversaturated" | "standard" | "storage-read-write";
 export default class AuroraPipeline {
   private static pipelineList: PipeList = new Map();
   private static bindGroups: BindGroup = new Map();
@@ -156,12 +157,13 @@ export default class AuroraPipeline {
     }
   }
   public static getColorTargetTemplate(
-    type: "standard" | "storage"
+    type: ColorAttachments
   ): GPUColorTargetState {
     switch (type) {
       case "standard":
         return {
           format: navigator.gpu.getPreferredCanvasFormat(),
+          writeMask: GPUColorWrite.ALL,
           blend: {
             color: {
               srcFactor: "src-alpha",
@@ -175,9 +177,26 @@ export default class AuroraPipeline {
             },
           },
         };
-      case "storage":
+      case "storage-read-write":
         return {
           format: "r32uint",
+        };
+      case "oversaturated":
+        return {
+          format: "rgba16float",
+          writeMask: GPUColorWrite.ALL,
+          blend: {
+            color: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+            alpha: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+          },
         };
     }
   }

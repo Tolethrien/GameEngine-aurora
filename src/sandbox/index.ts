@@ -1,4 +1,4 @@
-import AuroraBatcher from "../aurora/auroraBatcher";
+import AuroraBatcher from "../aurora/testBatcher";
 import Aurora from "../aurora/auroraCore";
 import AuroraTexture from "../aurora/auroraTexture";
 import char from "../assets/char.png";
@@ -14,7 +14,7 @@ const createAurora = async () => {
     { name: "map", url: map },
   ]);
   AuroraBatcher.setTextures(texture);
-  AuroraBatcher.createBatcher({
+  await AuroraBatcher.createBatcher({
     backgroundColor: [0, 0, 0, 255],
     bloomStrength: 50,
   });
@@ -32,15 +32,16 @@ const draw = () => {
   RenderFrame.start();
   AuroraBatcher.startBatch();
   AuroraBatcher.drawQuad({
-    position: { x: 120, y: 100 },
+    position: { x: 220, y: 100 },
     alpha: 255,
     crop: new Float32Array([0, 0, 32 / 1280, 32 / 832]),
     isTexture: 1,
     size: { height: 132, width: 132 },
     textureToUse: 0,
-    tint: new Uint8ClampedArray([255, 255, 255]),
+    tint: new Uint8ClampedArray([250, 225, 255]),
     additionalData: {
       bloom: 1,
+      // lightsource: [true, radial, width, height, color, intensity],
     },
   });
   AuroraBatcher.drawQuad({
@@ -54,6 +55,13 @@ const draw = () => {
     additionalData: {
       bloom: 0,
     },
+  });
+  AuroraBatcher.drawLight({
+    intensity: 1,
+    position: { x: 400, y: 100 },
+    size: { width: 100, height: 100 },
+    tint: [0, 0, 0],
+    type: "radial",
   });
   // AuroraBatcher.applyScreenShader("vignette", 1);
 

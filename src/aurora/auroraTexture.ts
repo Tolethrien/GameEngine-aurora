@@ -110,6 +110,41 @@ export default class AuroraTexture {
     const sampler = Aurora.device.createSampler();
     return { texture, sampler };
   }
+  public static createStorageTextureArray(
+    label: string,
+    numberOfTextures: number,
+    size: { width: number; height: number },
+    format?: GPUTextureFormat
+  ) {
+    if (
+      numberOfTextures * size.width > 8000 ||
+      numberOfTextures * size.height > 8000
+    )
+      throw new RangeError(
+        `Empty texture arrays is to big! max size is 8000x8000 px, you trying to create ${
+          numberOfTextures * size.width
+        }x${numberOfTextures * size.height} px`
+      );
+    const texture = Aurora.device.createTexture({
+      format: format ?? "bgra8unorm",
+
+      size: {
+        width: size.width,
+        height: size.height,
+        depthOrArrayLayers: numberOfTextures,
+      },
+      label: label,
+      dimension: "2d",
+      usage:
+        GPUTextureUsage.COPY_DST |
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.RENDER_ATTACHMENT |
+        GPUTextureUsage.STORAGE_BINDING,
+    });
+
+    const sampler = Aurora.device.createSampler();
+    return { texture, sampler };
+  }
   private static async loadImage(url: string) {
     return new Promise<HTMLImageElement>((resolved, rejected) => {
       const image = new Image();
