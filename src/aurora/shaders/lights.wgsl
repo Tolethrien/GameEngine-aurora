@@ -5,8 +5,8 @@ struct VertexInput {
   @location(0) pos: vec2u,
   @location(1) size: vec2u,
   @location(2) tint: vec3u,
-  @location(4) intensity: u32,
-  @location(5) lightType: u32,
+  @location(3) intensity: u32,
+  @location(4) lightType: u32,
   @builtin(vertex_index) vi: u32,
 
 };
@@ -60,5 +60,6 @@ else if(index == 3){
 }
 else {return GetVertexData(vec4f(0,0,0,0),vec2f(0,0));}
 }
+
 
 

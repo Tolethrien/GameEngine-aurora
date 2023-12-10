@@ -103,27 +103,33 @@ else if(props.instance == 6){
   output = compo;
 }
 else if(props.instance == 7){
-  output = grayscale(compo,effectType.y);
+  if(u32(effectType.x) == 1){output = grayscale(coords,effectType.y);}
+else if(u32(effectType.x) == 2){output = sepia(coords,effectType.y);}
+else if(u32(effectType.x) == 3){output = invert(coords,effectType.y);}
+else if(u32(effectType.x) == 4){output = chroma(coords,effectType.y);}
+else if(u32(effectType.x) == 5){output = vignette(coords,effectType.y);}
+else {output = textureSampleLevel(textureComposition,textureSampOne,coords,0);}
+  // output = chroma(compo,props.coords,effectType.y);
 }
 else{
   output = vec4f(0,0,0,1);
 }
 return output;
 }
-fn sepia(coords:vec2f,intensity:f32,texture:texture_2d<f32> ) -> vec4f{
-let textures = textureSample(textureNormal,textureSampOne,coords);
+fn sepia(coords:vec2f,intensity:f32) -> vec4f{
+let textures = textureSampleLevel(textureComposition,textureSampOne,coords,0);
 let y = dot(vec3f(0.299, 0.587, 0.114), textures.rgb);
 let sepiaConvert = vec4f(y+ 0.191, y-0.054, y-0.221, textures.a);
 return mix(textures, sepiaConvert, intensity);
 }
-fn grayscale(textures:vec4f,intensity:f32) -> vec4f{
-// var textures = textureSample(textureComposition,textureSampOne,coords);
+fn grayscale(coords:vec2f,intensity:f32) -> vec4f{
+var textures = textureSampleLevel(textureComposition,textureSampOne,coords,0);
 let y = dot(vec3f(0.299, 0.587, 0.114), textures.rgb);
 let grayscaleColor = vec4f(y, y, y, textures.a); 
     return mix(textures, grayscaleColor, 1);
 }
 fn invert(coords:vec2f,intensity:f32) -> vec4f {
-    var textures = textureSample(textureNormal,textureSampOne,coords);
+    var textures = textureSampleLevel(textureComposition,textureSampOne,coords,0);
     let invertedColor: vec3f = vec3f(1.0, 1.0, 1.0) - textures.rgb;
     let finalColor = vec4f(invertedColor,1);
      return mix(textures, finalColor, intensity);
@@ -132,10 +138,10 @@ fn chroma(coords:vec2f,intensity:f32) -> vec4f{
      let red_offset: vec2f = vec2f(0.005 * intensity, 0.0);
   let green_offset: vec2f = vec2f(0.0, 0.0);
   let blue_offset: vec2f = vec2f(-0.005 * intensity, 0.0);
-    var textures = textureSample(textureNormal,textureSampOne,coords);
-  let color_r: vec4<f32> = textureSample(textureNormal, textureSampOne, coords + red_offset);
-  let color_g: vec4<f32> = textureSample(textureNormal, textureSampOne, coords + green_offset);
-  let color_b: vec4<f32> = textureSample(textureNormal, textureSampOne, coords + blue_offset);
+    var textures = textureSampleLevel(textureComposition,textureSampOne,coords,0);
+  let color_r: vec4<f32> = textureSampleLevel(textureComposition, textureSampOne, coords + red_offset,0);
+  let color_g: vec4<f32> = textureSampleLevel(textureComposition, textureSampOne, coords + green_offset,0);
+  let color_b: vec4<f32> = textureSampleLevel(textureComposition, textureSampOne, coords + blue_offset,0);
   return vec4<f32>(color_r.r, color_g.g, color_b.b, textures.a);
 }
 
@@ -145,7 +151,7 @@ fn vignette(coords:vec2f,intensity:f32) -> vec4f {
   let softness: f32 = 0.45; // Miękkość krawędzi
   let vignette_color: vec3<f32> = vec3<f32>(0.2, 0.0, 0.2);
   let vignette: f32 = smoothstep(radius, radius - softness, dist) * intensity;
-  var color: vec4<f32> = textureSample(textureNormal, textureSampOne, coords);
+  var color: vec4<f32> = textureSampleLevel(textureComposition, textureSampOne, coords,0);
   return vec4f(mix(color.rgb * vignette, vignette_color, 1.0 - vignette) * intensity,color.a);
 }
 // if(u32(effectType.x) == 1){output = grayscale(coords,effectType.y);}

@@ -12,6 +12,7 @@ import AuroraTexture, { GPULoadedTexture } from "./auroraTexture";
 import AuroraBuffer from "./auroraBuffer";
 import AuroraCamera from "./auroraCamera";
 import radialL from "../assets/radial_small.png";
+import background from "../assets/1.png";
 
 interface SpriteProps {
   position: { x: number; y: number };
@@ -21,12 +22,10 @@ interface SpriteProps {
   tint: Uint8ClampedArray;
   alpha: number;
   isTexture: number;
-  additionalData: {
-    bloom: number;
-  };
+  bloom: number;
 }
 interface LightProps {
-  type: "radial";
+  type: LightType;
   position: { x: number; y: number };
   size: { width: number; height: number };
   tint: [number, number, number];
@@ -41,7 +40,11 @@ const OPTIONS_TEMPLATE = {
   customCamera: false,
   bloomStrength: 34,
 };
-
+type LightType = keyof typeof LIGHTS_TYPES;
+const LIGHTS_TYPES = {
+  radial: 0,
+  point: 1,
+};
 type ScreenEffects = keyof typeof SCREEN_EFFECTS;
 const SCREEN_EFFECTS = {
   none: 0,
@@ -54,7 +57,7 @@ const SCREEN_EFFECTS = {
 const VERTEX_ATT_COUNT = 8;
 const ADDDATA_ATT_COUNT = 7;
 const INDICIES_PER_QUAD = 6;
-const LIGHT_ATT_PER_SPRITE = 6;
+const LIGHT_ATT_PER_SPRITE = 9;
 
 export default class AuroraBatcher {
   public static numberOfQuadsInBatch = 0;
@@ -98,6 +101,7 @@ export default class AuroraBatcher {
   private static lightsTexture: GPULoadedTexture;
   private static compositeTexture: GPULoadedTexture;
   private static radialLight: GPULoadedTexture;
+  private static back: GPULoadedTexture;
 
   //=============================
 
@@ -117,6 +121,7 @@ export default class AuroraBatcher {
   }
   public static startBatch() {
     this.numberOfQuadsInBatch = 0;
+    this.numberOfLightsInFrame = 0;
     this.pipelinesInFrame = [];
     this.pipelinesToUseInFrame = {
       bloom: true,
@@ -154,7 +159,7 @@ export default class AuroraBatcher {
     alpha,
     tint,
     isTexture,
-    additionalData,
+    bloom,
   }: SpriteProps) {
     this.vertices[this.numberOfQuadsInBatch * VERTEX_ATT_COUNT] = position.x;
     this.vertices[this.numberOfQuadsInBatch * VERTEX_ATT_COUNT + 1] =
@@ -174,8 +179,7 @@ export default class AuroraBatcher {
     this.addData[this.numberOfQuadsInBatch * ADDDATA_ATT_COUNT + 4] =
       textureToUse;
     this.addData[this.numberOfQuadsInBatch * ADDDATA_ATT_COUNT + 5] = isTexture;
-    this.addData[this.numberOfQuadsInBatch * ADDDATA_ATT_COUNT + 6] =
-      additionalData.bloom;
+    this.addData[this.numberOfQuadsInBatch * ADDDATA_ATT_COUNT + 6] = bloom;
     this.numberOfQuadsInBatch++;
   }
   public static drawLight({
@@ -184,7 +188,27 @@ export default class AuroraBatcher {
     size,
     tint,
     type,
-  }: LightProps) {}
+  }: LightProps) {
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE] =
+      position.x;
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 1] =
+      position.y;
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 2] =
+      size.width;
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 3] =
+      size.height;
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 4] =
+      tint[0];
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 5] =
+      tint[1];
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 6] =
+      tint[2];
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 7] =
+      intensity;
+    this.lightsData[this.numberOfLightsInFrame * LIGHT_ATT_PER_SPRITE + 8] =
+      LIGHTS_TYPES[type];
+    this.numberOfLightsInFrame++;
+  }
   private static setOptions(options?: BatcherOptions) {
     const template = { ...OPTIONS_TEMPLATE, ...options };
     template.backgroundColor = normalizeColor(template.backgroundColor);
@@ -197,6 +221,7 @@ export default class AuroraBatcher {
       "radialLight",
       radialL
     );
+    this.back = await AuroraTexture.createTexture("back", background);
     this.offscreenTexture = AuroraTexture.createEmptyTexture(
       Aurora.canvas.width,
       Aurora.canvas.height,
@@ -389,7 +414,7 @@ export default class AuroraBatcher {
           view: this.offscreenTexture.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          clearValue: [0, 0, 0, 0],
+          clearValue: [0.5, 0.5, 0.5, 1],
         },
         {
           view: this.offscreenTextureFloat.texture.createView(),
@@ -627,6 +652,11 @@ export default class AuroraBatcher {
             visibility: GPUShaderStage.FRAGMENT,
             texture: { viewDimension: "2d" },
           },
+          {
+            binding: 4,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d" },
+          },
         ],
         label: "texture",
       },
@@ -648,6 +678,10 @@ export default class AuroraBatcher {
           {
             binding: 3,
             resource: this.lightsTexture.texture.createView(),
+          },
+          {
+            binding: 4,
+            resource: this.offscreenTextureFloat.texture.createView(),
           },
         ],
       },
@@ -689,11 +723,7 @@ export default class AuroraBatcher {
     );
 
     commandPass.setPipeline(AuroraPipeline.getPipeline("composition pipeline"));
-    const numberOfTexturesToDraw = this.compositeData.reduce(
-      (acc, num) => num !== 0 && acc + 1,
-      0
-    );
-    commandPass.draw(6, numberOfTexturesToDraw);
+    commandPass.draw(6, 1);
     commandPass.end();
     this.pipelinesInFrame.push(compositionEncoder.finish());
   }
@@ -981,11 +1011,11 @@ export default class AuroraBatcher {
         entries: [
           {
             binding: 0,
-            resource: this.lightsTexture.sampler,
+            resource: this.radialLight.sampler,
           },
           {
             binding: 1,
-            resource: this.lightsTexture.texture.createView(),
+            resource: this.radialLight.texture.createView(),
           },
         ],
       },
@@ -1010,13 +1040,14 @@ export default class AuroraBatcher {
   private static startLightsPipeline() {
     if (this.numberOfLightsInFrame === 0) return;
     const universalEncoder = Aurora.device.createCommandEncoder();
+    const col = 0.2;
     const commandPass = universalEncoder.beginRenderPass({
       colorAttachments: [
         {
           view: this.lightsTexture.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          clearValue: [0, 0, 0, 1],
+          clearValue: [0.5, 0.5, 0.5, 1],
         },
       ],
     });

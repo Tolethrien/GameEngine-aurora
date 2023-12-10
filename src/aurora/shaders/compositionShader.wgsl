@@ -2,6 +2,7 @@
 @group(0) @binding(1) var textureOffscreen: texture_2d<f32>;
 @group(0) @binding(2) var textureBloom: texture_2d<f32>;
 @group(0) @binding(3) var textureLight: texture_2d<f32>;
+@group(0) @binding(4) var textureOffscreenFloat: texture_2d<f32>;
 @group(1) @binding(0) var<uniform> compositeData: vec2u;
 
 struct VertexInput {
@@ -48,26 +49,23 @@ return out;
 @fragment
 fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
 var out:vec4f;
+var dark: f32 = 0.1;
+let baseTextureFloat = textureSample(textureOffscreenFloat,textureSampOne,props.coords);
 let baseTexture = textureSample(textureOffscreen,textureSampOne,props.coords);
 let bloomData = textureSample(textureBloom,textureSampOne,props.coords);
 let lightData = textureSample(textureLight,textureSampOne,props.coords);
-if(props.textureIndex == 1){
-    if(any(baseTexture.rgb > vec3f(1))){
-    out = vec4(baseTexture.rgb-2,baseTexture.a) + bloomData ;
-    }
-    else{
-        out = baseTexture + bloomData;
-    }
+var finalBloom: vec4f;
+if(any(baseTextureFloat.rgb > vec3f(1))){
+    finalBloom = vec4(baseTextureFloat.rgb-2,baseTextureFloat.a) + bloomData ;
+}
+else{
+    finalBloom = baseTextureFloat + bloomData;
+}
+//TODO: dodac mozliwosc przebrutalizowania swiatla 
+// out = (baseTexture * lightData) + lightData/2; <- switlo +/2 tylko dla faktycznego oswietlenia a nie calej sceny
+return (baseTexture + bloomData) * lightData;
+}
 
-}
-else if(props.textureIndex == 2 && any(compositeData == vec2u(2))){
-    out = baseTexture;
-}
-else{    
-    out = baseTexture;
-};
-return out;
-}
 
 
 
