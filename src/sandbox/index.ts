@@ -1,14 +1,11 @@
 import AuroraBatcher from "../aurora/testBatcher";
 import Aurora from "../aurora/auroraCore";
 import AuroraTexture from "../aurora/auroraTexture";
-import char from "../assets/lamp1.png";
-import map from "../assets/lamp2.png";
+import char from "../assets/char.png";
+import map from "../assets/char.png";
 import "../index.css";
 import RenderFrame from "../debugger/renderStats/renderFrame";
 const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
-let red = 1;
-let lon = 0;
-let tete = false;
 const createAurora = async () => {
   await Aurora.initialize(canvas);
   RenderFrame.Initialize();
@@ -18,10 +15,11 @@ const createAurora = async () => {
   ]);
   AuroraBatcher.setTextures(texture);
   await AuroraBatcher.createBatcher({
-    backgroundColor: [0, 0, 0, 255],
+    backgroundColor: [255, 0, 0, 255],
     bloomStrength: 16,
   });
   AuroraBatcher.setScreenShader("invert", 1);
+  AuroraBatcher.setGlobalColorCorrection([0.1, 0.3, 0.3]);
 
   window.addEventListener("keypress", (e) => {
     if (e.key === "h") {
@@ -33,7 +31,7 @@ const createAurora = async () => {
     }
     if (e.key === "g") {
       if (AuroraBatcher.globalEffect[0] === 0) {
-        AuroraBatcher.setScreenShader("invert", 1);
+        AuroraBatcher.setScreenShader("vignette", 1);
       } else {
         AuroraBatcher.setScreenShader("none");
       }
@@ -46,7 +44,7 @@ const createAurora = async () => {
       }
     }
     if (e.key === "b") {
-      tete = true;
+      Aurora.resizeCanvas(window.innerWidth, window.innerHeight);
     }
   });
   draw();
@@ -59,7 +57,7 @@ const draw = () => {
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
     isTexture: 1,
-    size: { height: 1000, width: 1000 },
+    size: { height: 300, width: 300 },
     textureToUse: 1,
     tint: new Uint8ClampedArray([255, 255, 255]),
     bloom: 0,
@@ -68,47 +66,55 @@ const draw = () => {
     position: { x: 1000, y: 1200 },
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
-    isTexture: 1,
-    size: { height: 132, width: 100 },
+    isTexture: 0,
+    size: { height: 32, width: 32 },
     textureToUse: 0,
     tint: new Uint8ClampedArray([255, 255, 255]),
-    bloom: lon,
+    bloom: 0,
   });
   AuroraBatcher.drawQuad({
     position: { x: 1500, y: 1200 },
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
-    isTexture: 1,
-    size: { height: 132, width: 100 },
+    isTexture: 0,
+    size: { height: 100, width: 100 },
     textureToUse: 0,
     tint: new Uint8ClampedArray([255, 255, 255]),
-    bloom: lon,
+    bloom: 0,
   });
 
-  AuroraBatcher.setGlobalLight([red + 0.3, red + 0.3, red]);
-  if (tete) red -= 0.001;
-  if (red < 0.25) lon = 1;
-  if (lon === 1) {
-    AuroraBatcher.drawLight({
-      position: { x: 1000, y: 1200 },
-      size: { width: 600, height: 600 },
-      tint: [50, 255, 50],
-      intensity: 255,
-      type: "radial",
-    });
-    AuroraBatcher.drawLight({
-      position: { x: 1500, y: 1200 },
-      size: { width: 600, height: 600 },
-      tint: [50, 50, 255],
-      intensity: 255,
-      type: "radial",
-    });
-  }
+  AuroraBatcher.drawLight({
+    position: { x: 1000, y: 1200 },
+    size: { width: 600, height: 600 },
+    tint: [50, 255, 50],
+    intensity: 255,
+    type: "radial",
+  });
+  AuroraBatcher.drawLight({
+    position: { x: 1500, y: 1200 },
+    size: { width: 600, height: 600 },
+    tint: [50, 50, 255],
+    intensity: 255,
+    type: "radial",
+  });
 
-  RenderFrame.setQuadCount(
-    AuroraBatcher.numberOfQuadsInBatch,
-    AuroraBatcher.getOptionsData.maxQuadPerSceen
-  );
+  const rend = AuroraBatcher.getRendererData;
+  const opt = AuroraBatcher.getOptionsData;
+  RenderFrame.setGameData({
+    lightCurrent: rend.lights,
+    quadsCurrent: rend.quads,
+    lightsLimit: opt.maxLightsPerSceen,
+    quadsLimit: opt.maxQuadPerSceen,
+    blooming: opt.bloom,
+    bloomStr: opt.bloomStrength,
+    camera: opt.customCamera ? "custome" : "built-in",
+    colorCorr: rend.colorCorr,
+    globalEffect: rend.globalEffect.type,
+    globalEffectStr: rend.globalEffect.str,
+    lighting: opt.lights,
+    computeCalls: AuroraBatcher.getGPUCalls.compute,
+    drawCalls: AuroraBatcher.getGPUCalls.render,
+  });
   RenderFrame.swapToGPU();
   AuroraBatcher.endBatch();
   RenderFrame.stop();

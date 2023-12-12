@@ -12,7 +12,7 @@ body {
   align-items: center;
   display: grid;
   text-align: center;
-  overflow-x: hidden;
+  overflow: hidden;
   position: relative;
 }
 

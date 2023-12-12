@@ -78,7 +78,7 @@ export default class AuroraBatcher {
   private static vertices: Float32Array;
   private static addData: Uint32Array;
   private static lightsData: Uint32Array;
-  private static globalEffect: Float32Array;
+  private static globalEffect = new Float32Array([0, 0]);
   private static compositeData: Uint32Array;
   private static customcameraMatrix = new Float32Array([
     1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
@@ -94,8 +94,8 @@ export default class AuroraBatcher {
   private static lightsTexture: GPULoadedTexture;
   private static compositeTexture: GPULoadedTexture;
   private static radialLight: GPULoadedTexture;
-  private static globalLightColor: [number, number, number] = [1, 1, 1];
-
+  private static colorCorrection: [number, number, number] = [1, 1, 1];
+  private static GPUCalls = { render: 0, compute: 0 };
   public static async createBatcher(options?: Partial<BatcherOptions>) {
     this.options = this.setOptions(options);
     await this.createBatcherTextures();
@@ -110,24 +110,40 @@ export default class AuroraBatcher {
   public static get getOptionsData() {
     return this.options;
   }
+  public static get getRendererData() {
+    return {
+      lights: this.numberOfLightsInFrame,
+      quads: this.numberOfQuadsInBatch,
+      globalEffect: {
+        type: Object.keys(SCREEN_EFFECTS)[
+          this.globalEffect[0]
+        ] as ScreenEffects,
+        str: this.globalEffect[1],
+      },
+      colorCorr: this.colorCorrection,
+    };
+  }
+  public static get getGPUCalls() {
+    return this.GPUCalls;
+  }
   public static async setTextures(texture: TextureAtlas) {
     this.textureAtlas = { ...texture, name: "textures" };
   }
   public static setBloom(bloom: boolean, strength?: number) {
     this.options.bloom = bloom;
-    this.options.bloomStrength = strength ? clamp(strength, 0, 50) : 32;
+    strength && (this.options.bloomStrength = clamp(strength, 0, 50));
     this.compositeData[1] = bloom ? 1 : 0;
   }
   public static setLights(lights: boolean) {
     this.options.lights = lights;
     this.compositeData[0] = lights ? 1 : 0;
   }
-  public static setGlobalLight(light: [number, number, number]) {
-    this.globalLightColor = light;
+  public static setGlobalColorCorrection(color: [number, number, number]) {
+    this.colorCorrection = color;
   }
   public static setScreenShader(effect: ScreenEffects, intesity?: number) {
     this.globalEffect[0] = SCREEN_EFFECTS[effect];
-    this.globalEffect[1] = intesity ? clamp(intesity, 0, 1) : 1;
+    intesity && (this.globalEffect[1] = clamp(intesity, 0, 1));
   }
   public static startBatch() {
     this.numberOfQuadsInBatch = 0;
@@ -135,6 +151,7 @@ export default class AuroraBatcher {
     this.pipelinesInFrame = [];
   }
   public static endBatch() {
+    this.GPUCalls = { render: 0, compute: 0 };
     !this.options.customCamera && this.camera.update();
     Aurora.device.queue.writeBuffer(
       this.projectionBuffer,
@@ -149,6 +166,7 @@ export default class AuroraBatcher {
     this.startLightsPipeline();
     this.startCompositePipeline();
     this.startPresentPipeline();
+
     Aurora.device.queue.submit(this.pipelinesInFrame);
   }
   public static setCameraBuffer(matrix: Float32Array) {
@@ -209,6 +227,12 @@ export default class AuroraBatcher {
     this.lightsData[(1 + this.numberOfLightsInFrame) * STRIDE.LIGHTS + 8] =
       LIGHTS_TYPES[type];
     this.numberOfLightsInFrame++;
+  }
+  public static drawText() {
+    //TODO: dodac renderowanie tekstu
+  }
+  public static drawGUI() {
+    //TODO: dodac renderowanie UI(bez kamery na bazie procentów)
   }
   private static setOptions(options?: Partial<BatcherOptions>) {
     const template = { ...OPTIONS_TEMPLATE, ...options };
@@ -423,13 +447,13 @@ export default class AuroraBatcher {
           view: this.offscreenTexture.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          clearValue: [1, 0, 0, 1],
+          clearValue: this.options.backgroundColor,
         },
         {
           view: this.offscreenTextureFloat.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          clearValue: [0, 0, 0, 1],
+          clearValue: this.options.backgroundColor,
         },
       ],
     });
@@ -447,10 +471,10 @@ export default class AuroraBatcher {
     commandPass.setIndexBuffer(this.indexBuffer, "uint32");
     commandPass.drawIndexed(STRIDE.INDICIES, this.numberOfQuadsInBatch);
     commandPass.end();
+    this.GPUCalls.render++;
     this.pipelinesInFrame.push(universalEncoder.finish());
   }
   private static createPresentPipeline() {
-    this.globalEffect = new Float32Array([0, 0]);
     this.globalEffectBuffer = AuroraBuffer.createDynamicBuffer({
       bufferType: "uniform",
       label: "globalEffectBuffer",
@@ -599,6 +623,7 @@ export default class AuroraBatcher {
     commandPass.setPipeline(AuroraPipeline.getPipeline("presentPipeline"));
     commandPass.draw(6, 8);
     commandPass.end();
+    this.GPUCalls.render++;
     this.pipelinesInFrame.push(globalEffectEncoder.finish());
   }
   private static createCompositePipeline() {
@@ -718,6 +743,7 @@ export default class AuroraBatcher {
     commandPass.setPipeline(AuroraPipeline.getPipeline("compositionPipeline"));
     commandPass.draw(6, 1);
     commandPass.end();
+    this.GPUCalls.render++;
     this.pipelinesInFrame.push(compositionEncoder.finish());
   }
   private static crateBloomPipeline() {
@@ -880,7 +906,7 @@ export default class AuroraBatcher {
       Math.ceil(Aurora.canvas.width / 4)
     );
     commandPass.end();
-
+    this.GPUCalls.compute += 2;
     this.pipelinesInFrame.push(commandEncoder.finish());
   }
   private static createTresholdPipeline() {
@@ -951,6 +977,7 @@ export default class AuroraBatcher {
     commandPass.setPipeline(AuroraPipeline.getPipeline("tresholdPipeline"));
     commandPass.draw(6, 1);
     commandPass.end();
+    this.GPUCalls.render++;
     this.pipelinesInFrame.push(globalEffectEncoder.finish());
   }
   private static crateLightsPipeline() {
@@ -1055,8 +1082,7 @@ export default class AuroraBatcher {
           view: this.lightsTexture.texture.createView(),
           loadOp: "clear",
           storeOp: "store",
-          //TODO: globalne oswietlenie
-          clearValue: [...this.globalLightColor, 1],
+          clearValue: [...this.colorCorrection, 1],
         },
       ],
     });
@@ -1071,6 +1097,7 @@ export default class AuroraBatcher {
     commandPass.setIndexBuffer(this.indexBuffer, "uint32");
     commandPass.drawIndexed(STRIDE.INDICIES, 1 + this.numberOfLightsInFrame);
     commandPass.end();
+    this.GPUCalls.render++;
     this.pipelinesInFrame.push(universalEncoder.finish());
   }
 }

@@ -65,7 +65,8 @@ fn getLights(coords: vec2f) -> vec4f{
 
 fn getBloom(coords: vec2f) -> vec4f{
 if(compositeData.y == 1){
-    return  textureSampleLevel(textureBloom,textureSampOne,coords,0);
+    var rgb =textureSampleLevel(textureBloom,textureSampOne,coords,0).rgb;
+    return  vec4f(rgb,0);
 }
 else{
     return vec4f(0);

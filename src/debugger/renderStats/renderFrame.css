@@ -1,9 +1,8 @@
 .framer {
   width: 15em;
   height: fit-content;
-  max-height: 20em;
-  overflow-y: auto;
-  overflow-x: hidden;
+  max-height: fit-content;
+  overflow: hidden;
   z-index: 999;
   position: relative;
   top: 0;
@@ -15,6 +14,7 @@
   font-family: Arial, sans-serif;
   font-size: 14px;
 }
+
 .framer_slot {
   border-bottom: 1px solid #313131;
   padding: 5px 0;
@@ -27,6 +27,8 @@
   padding: 5px 10px;
   font-weight: bold;
   text-align: center;
+  /* position: sticky; */
+  /* top: 0; */
 }
 .framer_fps {
   display: flex;
@@ -52,4 +54,25 @@
 }
 .framer_title_drag {
   cursor: move;
+}
+.framer_stats {
+  overflow-y: auto;
+  max-height: 20em;
+}
+.framer_stats::-webkit-scrollbar {
+  width: 8px;
+}
+
+.framer_stats::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.framer_stats::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+  border: 3px solid #1e1e1e;
+}
+
+.framer_stats::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }

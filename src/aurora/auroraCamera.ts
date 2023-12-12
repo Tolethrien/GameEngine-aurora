@@ -14,16 +14,11 @@ export default class AuroraCamera {
   zoom: number;
   maxZoom: number;
   minZoom: number;
-  canvas: { width: number; height: number };
   constructor() {
     this.projectionViewMatrix = Mat4.create();
-    this.canvas = {
-      width: Aurora.canvas.width,
-      height: Aurora.canvas.height,
-    };
     this.view = Mat4.create().lookAt([0, 0, 1], [0, 0, 0], [0, 1, 0]);
-    this.x = this.canvas.width / 2;
-    this.y = this.canvas.height / 2;
+    this.x = Aurora.canvas.width / 2;
+    this.y = Aurora.canvas.height / 2;
     this.speed = 15;
     this.zoom = 1;
     this.maxZoom = 10;
@@ -53,10 +48,10 @@ export default class AuroraCamera {
 
     this.projectionViewMatrix = Mat4.create()
       .ortho(
-        this.x * this.zoom - this.canvas.width / 2,
-        this.x * this.zoom + this.canvas.width / 2,
-        this.y * this.zoom + this.canvas.height / 2,
-        this.y * this.zoom - this.canvas.height / 2,
+        this.x * this.zoom - Aurora.canvas.width / 2,
+        this.x * this.zoom + Aurora.canvas.width / 2,
+        this.y * this.zoom + Aurora.canvas.height / 2,
+        this.y * this.zoom - Aurora.canvas.height / 2,
         -1,
         1
       )
