@@ -45,19 +45,27 @@ let data = getVertexData(props.vi,props.pos,props.size,props.crop);
 // zwykla tekstura i tint
 fn fragmentMain(props:VertexOutput) -> FragmenOut{
 var convertedColor = convertColor(props.color);
-var textures = textureSample(texture2DOne,textureSampOne,props.textureCoord,i32(props.textureIndex));
 
-let color = mix(convertedColor,textures * convertedColor,f32(props.colorOrTexture));
-var out:FragmenOut;
-out.one = color;
-//TODO: zobaczyc czy lepiej z filtrowanie alphy czy nie
-if(props.bloom == 1){
-  out.two = vec4f(color.rgb+2,color.a);
+if(props.colorOrTexture == 0){
+  //rect
+return getShape(convertedColor,props.bloom);
 }
-else {
-out.two = color;
+else{
+  return getTexture(convertedColor,props.bloom,props.textureCoord,i32(props.textureIndex));
+  //tekstura
 }
-return out;
+// let color = mix(convertedColor,textures * convertedColor,f32(props.colorOrTexture));
+// var out:FragmenOut;
+// out.one = color;
+// //TODO: zobaczyc czy lepiej z filtrowanie alphy czy nie
+// if(props.bloom == 1){
+//   out.two = vec4f(color.rgb+2,color.a);
+// }
+// else {
+// out.two = color;
+// }
+// return out;
+// }
 }
 
 fn convertColor(color: vec4u) -> vec4f {
@@ -77,6 +85,31 @@ else if(index == 3){
   return GetVertexData(vec4f(pos.x + size.x,pos.y - size.y,0,1),vec2f(crop.z,crop.y)); // 1 0
 }
 else {return GetVertexData(vec4f(0,0,0,0),vec2f(0,0));}
+}
+fn getShape(color:vec4f,bloom:u32) -> FragmenOut{
+var out:FragmenOut;
+out.one = color;
+  if(bloom == 0){
+    out.two = color;
+  }
+  else{
+    out.two = vec4f(color.rgb+2,color.a);
+  }
+    return out;
+}
+fn getTexture(color:vec4f,bloom:u32,textureCoords:vec2f,textureIndex:i32) -> FragmenOut{
+let texture = textureSampleLevel(texture2DOne,textureSampOne,textureCoords,textureIndex,0);
+var out:FragmenOut;
+let finalColor = texture * color;
+out.one = finalColor;
+  if(bloom == 0){
+    out.two = finalColor;
+  }
+  else{
+    out.two = vec4f(finalColor.rgb+2,finalColor.a);
+  }
+    return out;
+
 }
 
 

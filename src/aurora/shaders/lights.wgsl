@@ -1,5 +1,5 @@
 @group(0) @binding(0) var textureSampOne: sampler;
-@group(0) @binding(1) var texture2DOne: texture_2d<f32>;
+@group(0) @binding(1) var texture2DOne: texture_2d_array<f32>;
 @group(1) @binding(0) var<uniform> camera: mat4x4f;
 struct VertexInput {
   @location(0) pos: vec2u,
@@ -38,7 +38,7 @@ let data = getVertexData(props.vi,vec2f(props.pos),vec2f(props.size));
 @fragment
 fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
 var convertedColor = convertColor(vec4u(props.tint,props.intensity));
-var textures = textureSample(texture2DOne,textureSampOne,props.textureCoord);
+var textures = textureSample(texture2DOne,textureSampOne,props.textureCoord,props.lightType);
 return textures * convertedColor;
 }
 

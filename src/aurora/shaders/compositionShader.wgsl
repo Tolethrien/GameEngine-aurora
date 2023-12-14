@@ -49,7 +49,6 @@ return out;
 fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
 let baseTexture = textureSample(textureOffscreen,textureSampOne,props.coords);
 //TODO: dodac mozliwosc przebrutalizowania swiatla 
-//TODO: z jakiegos powodu bloom ma wplyw na jasnosc swiatla
 // out = (baseTexture * lightData) + lightData/2; <- switlo +/2 tylko dla faktycznego oswietlenia a nie calej sceny
 return (baseTexture + getBloom(props.coords)) * getLights(props.coords);
 }
