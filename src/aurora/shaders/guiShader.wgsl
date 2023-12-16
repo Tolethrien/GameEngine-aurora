@@ -2,7 +2,6 @@
 @group(0) @binding(1) var userTextures: texture_2d_array<f32>;
 @group(1) @binding(0) var textSampler: sampler;
 @group(1) @binding(1) var textTextures: texture_2d_array<f32>;
-@group(2) @binding(0) var<uniform> camera: mat4x4f;
 struct VertexInput {
   @location(0) pos: vec2f,
   @location(1) size: vec2f,
@@ -36,7 +35,7 @@ textureCoords: vec2f
 fn vertexMain(props:VertexInput) -> VertexOutput {
 let data = getVertexData(props.vi,props.pos,props.size,props.crop);
  var out: VertexOutput;
- out.pos = camera * data.position;
+ out.pos = data.position;
  out.textureCoord = data.textureCoords;
  out.color = props.color;
  out.textureIndex = props.textureIndex;

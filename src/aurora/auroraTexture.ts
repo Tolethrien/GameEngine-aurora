@@ -75,9 +75,9 @@ export default class AuroraTexture {
   }: GeneralTextureProps & {
     urls: string[];
   }) {
-    if (urls.length === 0)
+    if (urls.length === 0 || urls.length === 1)
       console.error(
-        `AuroraTexture Error: trying to load empty array of images in texture labeled ${label}`
+        `AuroraTexture Error: trying to load empty array of images or passing only one image in texture labeled ${label}.\nNote: Texture Arrays required at least 2 textures to work`
       );
 
     const bitMaps: ImageBitmap[] = [];

@@ -2,7 +2,9 @@ import Aurora from "./auroraCore";
 import AuroraPipeline from "./auroraPipeline";
 import AuroraShader from "./auroraShader";
 import offscreenShader from "./shaders/universalShader.wgsl?raw";
+import guiShader from "./shaders/guiShader.wgsl?raw";
 import postProcessShader from "./shaders/postProcess.wgsl?raw";
+import postTestShader from "./shaders/postTest.wgsl?raw";
 import blurShader from "./shaders/blur.wgsl?raw";
 import tresholdShader from "./shaders/treshold.wgsl?raw";
 import lightsShader from "./shaders/lights.wgsl?raw";
@@ -22,6 +24,26 @@ interface SpriteProps {
   alpha: number;
   isTexture: number;
   bloom: number;
+}
+interface GlyphSchema {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  xadvance: number;
+  yoffset: number;
+  xoffset: number;
+  id: number;
+}
+
+interface TextProps {
+  position: { x: number; y: number };
+  weight: number;
+  textureToUse: number;
+  color: Uint8ClampedArray;
+  alpha: number;
+  bloom: number;
+  text: string;
 }
 interface LightProps {
   type: LightType;
@@ -58,17 +80,21 @@ const SCREEN_EFFECTS = {
 };
 const STRIDE = {
   VERTICES: 8,
-  ADDDATA: 7,
+  ADDDATA: 8,
   INDICIES: 6,
   LIGHTS: 9,
 };
-
+const TEST = false;
 export default class AuroraBatcher {
   private static options: BatcherOptions;
   public static numberOfQuadsInBatch = 0;
   public static numberOfLightsInFrame = 0;
+  public static numberOfGuiInFrame = 0;
+  private static numberOfQuadsInBuffer = 0;
   private static vertexBuffer: GPUBuffer;
   private static addDataBuffer: GPUBuffer;
+  private static vertexGUIBuffer: GPUBuffer;
+  private static addDataGUIBuffer: GPUBuffer;
   private static indexBuffer: GPUBuffer;
   private static lightsDataBuffer: GPUBuffer;
   private static projectionBuffer: GPUBuffer;
@@ -87,8 +113,11 @@ export default class AuroraBatcher {
   private static camera: AuroraCamera | undefined;
   private static pipelinesInFrame: GPUCommandBuffer[] = [];
   private static universalSampler: GPUSampler;
+  private static fontSampler: GPUSampler;
+  private static fontData: Record<number, Omit<GlyphSchema, "id">> = {};
   private static colorCorrection: [number, number, number] = [1, 1, 1];
   private static GPUCalls = { render: 0, compute: 0 };
+  private static renderGui = false;
 
   public static async createBatcher(options?: Partial<BatcherOptions>) {
     !AuroraTexture.getStore.has("userTextureAtlas") &&
@@ -101,7 +130,9 @@ export default class AuroraBatcher {
     this.crateBloomPipeline();
     this.crateLightsPipeline();
     this.createCompositePipeline();
-    this.createPresentPipeline();
+    !TEST && this.createPresentPipeline();
+    TEST && this.createTestPipeline();
+    this.createGUIPipeline();
   }
   public static get getOptionsData() {
     return this.options;
@@ -139,9 +170,15 @@ export default class AuroraBatcher {
     this.globalEffect[0] = SCREEN_EFFECTS[effect];
     intesity && (this.globalEffect[1] = clamp(intesity, 0, 1));
   }
+  public static swapToGui() {
+    this.renderGui = true;
+  }
   public static startBatch() {
     this.numberOfQuadsInBatch = 0;
     this.numberOfLightsInFrame = 0;
+    this.numberOfGuiInFrame = 0;
+    this.numberOfQuadsInBuffer = 0;
+    this.renderGui = false;
     this.pipelinesInFrame = [];
   }
   public static endBatch() {
@@ -159,14 +196,35 @@ export default class AuroraBatcher {
     this.startBloomPipeline();
     this.startLightsPipeline();
     this.startCompositePipeline();
-    this.startPresentPipeline();
+    !TEST && this.startPresentPipeline();
+    TEST && this.startTestPipeline();
+    this.startGUIPipeline();
 
     Aurora.device.queue.submit(this.pipelinesInFrame);
   }
   public static setCameraBuffer(matrix: Float32Array) {
     this.customcameraMatrix = matrix;
   }
-
+  public static async loadFont(
+    bitmap: string,
+    json: { symbols: GlyphSchema[] }
+  ) {
+    await AuroraTexture.createTextureArray({
+      label: "fonts",
+      urls: [bitmap, bitmap],
+    });
+    json.symbols.forEach((symbol) => {
+      this.fontData[symbol.id] = {
+        width: symbol.width,
+        height: symbol.height,
+        x: symbol.x,
+        y: symbol.y,
+        xoffset: symbol.xoffset,
+        yoffset: symbol.yoffset,
+        xadvance: symbol.xadvance,
+      };
+    });
+  }
   public static drawQuad({
     position,
     size,
@@ -177,23 +235,28 @@ export default class AuroraBatcher {
     isTexture,
     bloom,
   }: SpriteProps) {
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES] = position.x;
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 1] = position.y;
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 2] = size.width;
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 3] =
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES] = position.x;
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 1] =
+      position.y;
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 2] =
+      size.width;
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 3] =
       size.height;
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 4] = crop[0];
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 5] = crop[1];
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 6] = crop[2];
-    this.vertices[this.numberOfQuadsInBatch * STRIDE.VERTICES + 7] = crop[3];
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA] = tint[0];
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 1] = tint[1];
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 2] = tint[2];
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 3] = alpha;
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 4] = textureToUse;
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 5] = isTexture;
-    this.addData[this.numberOfQuadsInBatch * STRIDE.ADDDATA + 6] = bloom;
-    this.numberOfQuadsInBatch++;
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 4] = crop[0];
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 5] = crop[1];
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 6] = crop[2];
+    this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 7] = crop[3];
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA] = tint[0];
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 1] = tint[1];
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 2] = tint[2];
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 3] = alpha;
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 4] =
+      textureToUse;
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 5] = isTexture;
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 6] = 0;
+    this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 7] = bloom;
+    this.numberOfQuadsInBuffer++;
+    this.renderGui ? this.numberOfGuiInFrame++ : this.numberOfQuadsInBatch++;
   }
   public static drawLight({
     intensity,
@@ -202,6 +265,7 @@ export default class AuroraBatcher {
     tint,
     type,
   }: LightProps) {
+    if (this.renderGui) return;
     this.lightsData[(1 + this.numberOfLightsInFrame) * STRIDE.LIGHTS] =
       position.x;
     this.lightsData[(1 + this.numberOfLightsInFrame) * STRIDE.LIGHTS + 1] =
@@ -222,12 +286,56 @@ export default class AuroraBatcher {
       LIGHTS_TYPES[type];
     this.numberOfLightsInFrame++;
   }
-  public static drawText() {
-    //TODO: dodac renderowanie tekstu
+  public static drawText({
+    alpha,
+    bloom,
+    color,
+    position,
+    textureToUse,
+    weight,
+    text,
+  }: TextProps) {
+    //TODO: znormalizowac jesli renderujesz UI
+    let xPos = position.x;
+    const { height: imgHeight, width: imgWidth } =
+      AuroraTexture.getTexture("fonts").meta;
+    Array.from(text).forEach((char) => {
+      const glyph = this.fontData[char.charCodeAt(0)];
+      const width = glyph.width * weight;
+      const height = glyph.height * weight;
+      const advence = glyph.xadvance * weight;
+      const offsetY = glyph.yoffset * weight;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES] =
+        xPos + width / 2;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 1] =
+        position.y + height / 2 + offsetY;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 2] =
+        width / 2;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 3] =
+        height / 2;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 4] =
+        glyph.x / imgWidth;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 5] =
+        glyph.y / imgHeight;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 6] =
+        glyph.x / imgWidth + glyph.width / imgWidth;
+      this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 7] =
+        glyph.y / imgHeight + glyph.height / imgHeight;
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA] = color[0];
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 1] = color[1];
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 2] = color[2];
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 3] = alpha;
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 4] =
+        textureToUse;
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 5] = 0;
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 6] = 1;
+      this.addData[this.numberOfQuadsInBuffer * STRIDE.ADDDATA + 7] = bloom;
+      this.numberOfQuadsInBuffer++;
+      this.renderGui ? this.numberOfGuiInFrame++ : this.numberOfQuadsInBatch++;
+      xPos += advence;
+    });
   }
-  public static drawGUI() {
-    //TODO: dodac renderowanie UI(bez kamery na bazie procentów)
-  }
+
   private static setOptions(options?: Partial<BatcherOptions>) {
     const template = { ...OPTIONS_TEMPLATE, ...options };
     template.backgroundColor = normalizeColor(template.backgroundColor);
@@ -237,6 +345,10 @@ export default class AuroraBatcher {
   }
   private static async createBatcherTextures() {
     this.universalSampler = AuroraTexture.createSampler();
+    this.fontSampler = AuroraTexture.createSampler({
+      magFilter: "linear",
+      minFilter: "linear",
+    });
 
     await AuroraTexture.createTextureArray({
       label: "lightsList",
@@ -370,7 +482,12 @@ export default class AuroraBatcher {
         {
           format: "uint32",
           offset: 6 * Uint32Array.BYTES_PER_ELEMENT,
-          shaderLocation: 6, // bloom, see vertex shader
+          shaderLocation: 6, // isText, see vertex shader
+        },
+        {
+          format: "uint32",
+          offset: 7 * Uint32Array.BYTES_PER_ELEMENT,
+          shaderLocation: 7, // bloom, see vertex shader
         },
       ],
     });
@@ -424,8 +541,40 @@ export default class AuroraBatcher {
         ],
       },
     });
+    AuroraPipeline.addBindGroup({
+      name: "textBind",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d-array" },
+          },
+        ],
+        label: "textBindLayout",
+      },
+      data: {
+        label: "textBindData",
+        entries: [
+          {
+            binding: 0,
+            resource: this.fontSampler,
+          },
+          {
+            binding: 1,
+            resource: AuroraTexture.getTexture("fonts").texture.createView(),
+          },
+        ],
+      },
+    });
     AuroraPipeline.createPipelineLayout("offscreenPipelineLayout", [
       "userAssetsBind",
+      "textBind",
       "cameraBind",
     ]);
     AuroraShader.addShader("offscreenShader", offscreenShader);
@@ -472,8 +621,8 @@ export default class AuroraBatcher {
       ],
     });
 
-    Aurora.device.queue.writeBuffer(this.vertexBuffer, 0, this.vertices);
-    Aurora.device.queue.writeBuffer(this.addDataBuffer, 0, this.addData);
+    Aurora.device.queue.writeBuffer(this.vertexBuffer, 0, this.vertices, 0);
+    Aurora.device.queue.writeBuffer(this.addDataBuffer, 0, this.addData, 0);
     AuroraPipeline.getBindsFromLayout("offscreenPipelineLayout").forEach(
       (bind, index) => {
         commandPass.setBindGroup(index, bind);
@@ -488,13 +637,13 @@ export default class AuroraBatcher {
     this.GPUCalls.render++;
     this.pipelinesInFrame.push(universalEncoder.finish());
   }
-  private static createPresentPipeline() {
+  private static createTestPipeline() {
     this.globalEffectBuffer = AuroraBuffer.createDynamicBuffer({
       bufferType: "uniform",
       label: "globalEffectBuffer",
       typedArr: this.globalEffect,
     });
-    AuroraShader.addShader("postProcessShader", postProcessShader);
+    AuroraShader.addShader("postTestShader", postTestShader);
     AuroraPipeline.addBindGroup({
       name: "compositionTextureBind",
       layout: {
@@ -620,10 +769,109 @@ export default class AuroraBatcher {
       ),
       pipelineName: "presentPipeline",
 
+      shader: AuroraShader.getSader("postTestShader"),
+    });
+  }
+  private static createPresentPipeline() {
+    this.globalEffectBuffer = AuroraBuffer.createDynamicBuffer({
+      bufferType: "uniform",
+      label: "globalEffectBuffer",
+      typedArr: this.globalEffect,
+    });
+    AuroraShader.addShader("postProcessShader", postProcessShader);
+    AuroraPipeline.addBindGroup({
+      name: "compositionTextureBind",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d" },
+          },
+        ],
+        label: "compositionTextureBindLayout",
+      },
+      data: {
+        label: "compositionTextureBindData",
+        entries: [
+          {
+            binding: 0,
+            resource:
+              AuroraTexture.getTexture("compositeTexture").texture.createView(),
+          },
+        ],
+      },
+    });
+    AuroraPipeline.addBindGroup({
+      name: "globalEffectBind",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            buffer: { type: "uniform" },
+            visibility: GPUShaderStage.FRAGMENT,
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          },
+        ],
+        label: "globalEffectBindLayout",
+      },
+      data: {
+        entries: [
+          { binding: 0, resource: { buffer: this.globalEffectBuffer } },
+          {
+            binding: 1,
+            resource: this.universalSampler,
+          },
+        ],
+        label: "globalEffectBindData",
+      },
+    });
+    AuroraPipeline.createPipelineLayout("presentPipelineLayout", [
+      "globalEffectBind",
+      "compositionTextureBind",
+    ]);
+    AuroraPipeline.createRenderPipeline({
+      buffers: [],
+      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
+        "presentPipelineLayout"
+      ),
+      pipelineName: "presentPipeline",
+
       shader: AuroraShader.getSader("postProcessShader"),
     });
   }
   private static startPresentPipeline() {
+    const globalEffectEncoder = Aurora.device.createCommandEncoder();
+    const commandPass = globalEffectEncoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: Aurora.context.getCurrentTexture().createView(),
+          loadOp: "clear",
+          storeOp: "store",
+        },
+      ],
+    });
+    Aurora.device.queue.writeBuffer(
+      this.globalEffectBuffer,
+      0,
+      this.globalEffect
+    );
+    AuroraPipeline.getBindsFromLayout("presentPipelineLayout").forEach(
+      (bind, index) => {
+        commandPass.setBindGroup(index, bind);
+      }
+    );
+    commandPass.setPipeline(AuroraPipeline.getPipeline("presentPipeline"));
+    commandPass.draw(6);
+    commandPass.end();
+    this.GPUCalls.render++;
+    this.pipelinesInFrame.push(globalEffectEncoder.finish());
+  }
+  private static startTestPipeline() {
     const globalEffectEncoder = Aurora.device.createCommandEncoder();
     const commandPass = globalEffectEncoder.beginRenderPass({
       colorAttachments: [
@@ -1144,6 +1392,137 @@ export default class AuroraBatcher {
     this.GPUCalls.render++;
     this.pipelinesInFrame.push(universalEncoder.finish());
   }
-  private static createGUIPipeline() {}
-  private static startGUIPipeline() {}
+  private static createGUIPipeline() {
+    this.vertexGUIBuffer = AuroraBuffer.createDynamicBuffer({
+      bufferType: "vertex",
+      typedArr: this.vertices,
+      label: "offscreenVertexGUIBuffer",
+    });
+    this.addDataGUIBuffer = AuroraBuffer.createDynamicBuffer({
+      bufferType: "vertex",
+      typedArr: this.addData,
+      label: "offscreenAddDataGUIBuffer",
+    });
+
+    AuroraPipeline.addBindGroup({
+      name: "userGUIBind",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d-array" },
+          },
+        ],
+        label: "userGUIBindLayout",
+      },
+      data: {
+        label: "userGUIBindBindData",
+        entries: [
+          {
+            binding: 0,
+            resource: this.universalSampler,
+          },
+          {
+            binding: 1,
+            resource:
+              AuroraTexture.getTexture("userTextureAtlas").texture.createView(),
+          },
+        ],
+      },
+    });
+    AuroraPipeline.addBindGroup({
+      name: "textBind",
+      layout: {
+        entries: [
+          {
+            binding: 0,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: {},
+          },
+          {
+            binding: 1,
+            visibility: GPUShaderStage.FRAGMENT,
+            texture: { viewDimension: "2d-array" },
+          },
+        ],
+        label: "textBindLayout",
+      },
+      data: {
+        label: "textBindData",
+        entries: [
+          {
+            binding: 0,
+            resource: this.fontSampler,
+          },
+          {
+            binding: 1,
+            resource: AuroraTexture.getTexture("fonts").texture.createView(),
+          },
+        ],
+      },
+    });
+    AuroraPipeline.createPipelineLayout("guiPipelineLayout", [
+      "userGUIBind",
+      "textBind",
+    ]);
+    AuroraShader.addShader("guiShader", guiShader);
+
+    AuroraPipeline.createRenderPipeline({
+      buffers: AuroraPipeline.getVertexBufferLayoutGroup(
+        "offscreenBuffersGroupLayout"
+      ),
+      pipelineLayout:
+        AuroraPipeline.getRenderPipelineLayout("guiPipelineLayout"),
+      pipelineName: "guiPipeline",
+      shader: AuroraShader.getSader("guiShader"),
+      colorTargets: [AuroraPipeline.getColorTargetTemplate("standard")],
+    });
+  }
+  private static startGUIPipeline() {
+    if (this.numberOfGuiInFrame === 0) return;
+
+    const guiEncoder = Aurora.device.createCommandEncoder();
+    const commandPass = guiEncoder.beginRenderPass({
+      colorAttachments: [
+        {
+          view: Aurora.context.getCurrentTexture().createView(),
+          loadOp: "load",
+          storeOp: "store",
+          clearValue: [0, 0, 0, 0],
+        },
+      ],
+    });
+
+    Aurora.device.queue.writeBuffer(
+      this.vertexGUIBuffer,
+      0,
+      this.vertices,
+      this.numberOfQuadsInBatch * STRIDE.VERTICES
+    );
+    Aurora.device.queue.writeBuffer(
+      this.addDataGUIBuffer,
+      0,
+      this.addData,
+      this.numberOfQuadsInBatch * STRIDE.ADDDATA
+    );
+    AuroraPipeline.getBindsFromLayout("guiPipelineLayout").forEach(
+      (bind, index) => {
+        commandPass.setBindGroup(index, bind);
+      }
+    );
+    commandPass.setPipeline(AuroraPipeline.getPipeline("guiPipeline"));
+    commandPass.setVertexBuffer(0, this.vertexGUIBuffer);
+    commandPass.setVertexBuffer(1, this.addDataGUIBuffer);
+    commandPass.setIndexBuffer(this.indexBuffer, "uint32");
+    commandPass.drawIndexed(STRIDE.INDICIES, this.numberOfGuiInFrame);
+    commandPass.end();
+    this.GPUCalls.render++;
+    this.pipelinesInFrame.push(guiEncoder.finish());
+  }
 }
