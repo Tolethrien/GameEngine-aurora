@@ -1,13 +1,11 @@
-import AuroraBatcher from "../aurora/auroraBatcher";
+import AuroraBatcher, { TEST } from "../aurora/auroraBatcher";
 import Aurora from "../aurora/auroraCore";
 import AuroraTexture from "../aurora/auroraTexture";
 import char from "../assets/lamp1.png";
 import map from "../assets/lamp2.png";
 import "../index.css";
-import fontGeorgia from "../assets/georgia.png";
 import latoData from "../fonts/lato_regular_32.json";
 import fontLato from "../assets/lato_regular_32.png";
-import georgiaData from "../aurora/georgiaData.json";
 import RenderFrame from "../debugger/renderStats/renderFrame";
 const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
 const createAurora = async () => {
@@ -23,7 +21,7 @@ const createAurora = async () => {
     backgroundColor: [255, 250, 0, 255],
     bloomStrength: 16,
   });
-  AuroraBatcher.setScreenShader("invert", 1);
+  AuroraBatcher.setScreenShader("grayscale", 0.6);
   AuroraBatcher.setGlobalColorCorrection([0.1, 0.1, 0.1]);
 
   window.addEventListener("keypress", (e) => {
@@ -36,7 +34,7 @@ const createAurora = async () => {
     }
     if (e.key === "g") {
       if (AuroraBatcher.globalEffect[0] === 0) {
-        AuroraBatcher.setScreenShader("invert", 1);
+        AuroraBatcher.setScreenShader("grayscale", 1);
       } else {
         AuroraBatcher.setScreenShader("none");
       }
@@ -148,13 +146,13 @@ const draw = () => {
     bloom: 0,
   });
   AuroraBatcher.drawText({
-    position: { x: 0.8, y: 0.7 },
+    position: { x: 0.55, y: 0.7 },
     alpha: 255,
     bloom: 0,
     color: new Uint8ClampedArray([80, 80, 250]),
-    text: "jebie śledziem!",
+    text: "I AM GUI!",
     textureToUse: 0,
-    weight: 1,
+    weight: 1.5,
   });
 
   const rend = AuroraBatcher.getRendererData;

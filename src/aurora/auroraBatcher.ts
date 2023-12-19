@@ -84,7 +84,7 @@ const STRIDE = {
   INDICIES: 6,
   LIGHTS: 9,
 };
-const TEST = false;
+export const TEST = false;
 export default class AuroraBatcher {
   private static options: BatcherOptions;
   public static numberOfQuadsInBatch = 0;
@@ -113,7 +113,7 @@ export default class AuroraBatcher {
   private static camera: AuroraCamera | undefined;
   private static pipelinesInFrame: GPUCommandBuffer[] = [];
   private static universalSampler: GPUSampler;
-  private static fontSampler: GPUSampler;
+  private static linearSampler: GPUSampler;
   private static fontData: Record<number, Omit<GlyphSchema, "id">> = {};
   private static colorCorrection: [number, number, number] = [1, 1, 1];
   private static GPUCalls = { render: 0, compute: 0 };
@@ -168,7 +168,8 @@ export default class AuroraBatcher {
   }
   public static setScreenShader(effect: ScreenEffects, intesity?: number) {
     this.globalEffect[0] = SCREEN_EFFECTS[effect];
-    intesity && (this.globalEffect[1] = clamp(intesity, 0, 1));
+    typeof intesity === "number" &&
+      (console.log("s"), (this.globalEffect[1] = clamp(intesity, 0, 1)));
   }
   public static swapToGui() {
     this.renderGui = true;
@@ -301,14 +302,22 @@ export default class AuroraBatcher {
       AuroraTexture.getTexture("fonts").meta;
     Array.from(text).forEach((char) => {
       const glyph = this.fontData[char.charCodeAt(0)];
-      const width = glyph.width * weight;
-      const height = glyph.height * weight;
-      const advence = glyph.xadvance * weight;
-      const offsetY = glyph.yoffset * weight;
+      let width, height, advence, offsetY;
+      if (this.renderGui) {
+        width = (glyph.width * weight) / Aurora.canvas.width;
+        height = (glyph.height * weight) / Aurora.canvas.height;
+        advence = (glyph.xadvance * weight) / Aurora.canvas.width;
+        offsetY = (glyph.yoffset * weight) / Aurora.canvas.height;
+      } else {
+        width = glyph.width * weight;
+        height = glyph.height * weight;
+        advence = glyph.xadvance * weight;
+        offsetY = glyph.yoffset * weight;
+      }
       this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES] =
         xPos + width / 2;
       this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 1] =
-        position.y + height / 2 + offsetY;
+        position.y + height / 2 + (this.renderGui ? 0 : offsetY);
       this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 2] =
         width / 2;
       this.vertices[this.numberOfQuadsInBuffer * STRIDE.VERTICES + 3] =
@@ -345,7 +354,7 @@ export default class AuroraBatcher {
   }
   private static async createBatcherTextures() {
     this.universalSampler = AuroraTexture.createSampler();
-    this.fontSampler = AuroraTexture.createSampler({
+    this.linearSampler = AuroraTexture.createSampler({
       magFilter: "linear",
       minFilter: "linear",
     });
@@ -563,7 +572,7 @@ export default class AuroraBatcher {
         entries: [
           {
             binding: 0,
-            resource: this.fontSampler,
+            resource: this.linearSampler,
           },
           {
             binding: 1,
@@ -1070,7 +1079,7 @@ export default class AuroraBatcher {
       data: {
         label: "bloomXPassBindData",
         entries: [
-          { binding: 0, resource: this.universalSampler },
+          { binding: 0, resource: this.linearSampler },
           {
             binding: 1,
             resource:
@@ -1120,7 +1129,7 @@ export default class AuroraBatcher {
       data: {
         label: "bloomYPassBindData",
         entries: [
-          { binding: 0, resource: this.universalSampler },
+          { binding: 0, resource: this.linearSampler },
           {
             binding: 1,
             resource: AuroraTexture.getTexture(
@@ -1334,7 +1343,7 @@ export default class AuroraBatcher {
         entries: [
           {
             binding: 0,
-            resource: this.universalSampler,
+            resource: this.linearSampler,
           },
           {
             binding: 1,
@@ -1458,7 +1467,7 @@ export default class AuroraBatcher {
         entries: [
           {
             binding: 0,
-            resource: this.fontSampler,
+            resource: this.linearSampler,
           },
           {
             binding: 1,

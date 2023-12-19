@@ -67,16 +67,17 @@ fn convertColor(color: vec4u) -> vec4f {
 }
 fn getVertexData(index: u32,pos:vec2f,size:vec2f,crop:vec4f) -> GetVertexData{
 if(index == 0){
-  return GetVertexData(vec4f(pos.x - size.x,pos.y + size.y,0,1),vec2f(crop.x,crop.w)); // 01
+  //x y z w
+  return GetVertexData(vec4f(pos.x - size.x,pos.y + size.y,0,1),vec2f(crop.x,crop.y)); // 01
 }
 else if(index == 1){
-  return GetVertexData(vec4f(pos.x + size.x,pos.y + size.y,0,1),vec2f(crop.z,crop.w)); //1 1
+  return GetVertexData(vec4f(pos.x + size.x,pos.y + size.y,0,1),vec2f(crop.z,crop.y)); //1 1
 }
 else if(index == 2){
-  return GetVertexData(vec4f(pos.x - size.x,pos.y - size.y,0,1),vec2f(crop.x,crop.y)); // 00
+  return GetVertexData(vec4f(pos.x - size.x,pos.y - size.y,0,1),vec2f(crop.x,crop.w)); // 00
 }
 else if(index == 3){
-  return GetVertexData(vec4f(pos.x + size.x,pos.y - size.y,0,1),vec2f(crop.z,crop.y)); // 1 0
+  return GetVertexData(vec4f(pos.x + size.x,pos.y - size.y,0,1),vec2f(crop.z,crop.w)); // 1 0
 }
 else {return GetVertexData(vec4f(0,0,0,0),vec2f(0,0));}
 }

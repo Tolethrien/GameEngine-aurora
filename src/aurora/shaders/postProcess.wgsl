@@ -50,7 +50,7 @@ fn grayscale(coords:vec2f,intensity:f32) -> vec4f{
 var textures = textureSampleLevel(compositionTexture,textureSampOne,coords,0);
 let y = dot(vec3f(0.299, 0.587, 0.114), textures.rgb);
 let grayscaleColor = vec4f(y, y, y, textures.a); 
-    return mix(textures, grayscaleColor, 1);
+    return mix(textures, grayscaleColor, intensity);
 }
 fn invert(coords:vec2f,intensity:f32) -> vec4f {
     var textures = textureSampleLevel(compositionTexture,textureSampOne,coords,0);
