@@ -22,9 +22,12 @@ interface GeneralTextureProps {
 
 export default class AuroraTexture {
   public static textureStore: Map<string, GPUAuroraTexture> = new Map();
+  public static samplerStore: Map<string, GPUSampler> = new Map();
   public static useStore = true;
-  public static createSampler(desc?: GPUSamplerDescriptor) {
-    return Aurora.device.createSampler(desc);
+  public static createSampler(label: string, desc?: GPUSamplerDescriptor) {
+    const sampler = Aurora.device.createSampler(desc);
+    this.samplerStore.set(label, sampler);
+    return sampler;
   }
   public static async createTexture({
     format,
@@ -205,8 +208,14 @@ export default class AuroraTexture {
   public static getTexture(label: string) {
     return this.textureStore.get(label);
   }
+  public static getSampler(label: string) {
+    return this.samplerStore.get(label);
+  }
   public static removeTexture(label: string) {
     this.textureStore.delete(label);
+  }
+  public static removeSampler(label: string) {
+    this.samplerStore.delete(label);
   }
   public static get getStore() {
     return this.textureStore;

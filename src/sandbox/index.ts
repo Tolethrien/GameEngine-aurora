@@ -1,4 +1,4 @@
-import AuroraBatcher, { TEST } from "../aurora/auroraBatcher";
+import AuroraBatcher from "../aurora/murp/batcher";
 import Aurora from "../aurora/auroraCore";
 import AuroraTexture from "../aurora/auroraTexture";
 import char from "../assets/lamp1.png";
@@ -7,9 +7,12 @@ import "../index.css";
 import latoData from "../fonts/lato_regular_32.json";
 import fontLato from "../assets/lato_regular_32.png";
 import RenderFrame from "../debugger/renderStats/renderFrame";
+import BatcherData from "../aurora/murp/data";
+import Draw from "../aurora/murp/draw";
 const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
 const createAurora = async () => {
   await Aurora.initialize(canvas);
+  BatcherData.initialize();
   RenderFrame.Initialize();
   await AuroraTexture.createTextureArray({
     label: "userTextureAtlas",
@@ -18,44 +21,50 @@ const createAurora = async () => {
   await AuroraBatcher.loadFont(fontLato, latoData);
 
   await AuroraBatcher.createBatcher({
-    backgroundColor: [255, 250, 0, 255],
-    bloomStrength: 16,
+    backgroundColor: [0, 0, 0, 255],
+    bloom: { active: true, str: 10 },
+    lighting: true,
+    maxLightsPerSceen: 200,
   });
-  AuroraBatcher.setScreenShader("grayscale", 0.6);
+  // AuroraBatcher.setScreenShader("sepia", 1);
   AuroraBatcher.setGlobalColorCorrection([0.1, 0.1, 0.1]);
-
   window.addEventListener("keypress", (e) => {
     if (e.key === "h") {
-      if (AuroraBatcher.getOptionsData.lights) {
+      if (AuroraBatcher.getRenderData.lighting) {
         AuroraBatcher.setLights(false);
       } else {
         AuroraBatcher.setLights(true);
       }
     }
     if (e.key === "g") {
-      if (AuroraBatcher.globalEffect[0] === 0) {
+      if (AuroraBatcher.getRenderData.screenShader.type === "none") {
         AuroraBatcher.setScreenShader("grayscale", 1);
       } else {
         AuroraBatcher.setScreenShader("none");
       }
     }
     if (e.key === "j") {
-      if (AuroraBatcher.getOptionsData.bloom) {
+      if (AuroraBatcher.getRenderData.bloom.active) {
         AuroraBatcher.setBloom(false);
       } else {
         AuroraBatcher.setBloom(true, 16);
       }
     }
-    if (e.key === "b") {
-      Aurora.resizeCanvas(window.innerWidth, window.innerHeight);
-    }
   });
   draw();
 };
+
+//
+//     if (e.key === "b") {
+//       Aurora.resizeCanvas(window.innerWidth, window.innerHeight);
+//     }
+//   });
+// draw();
+// };
 const draw = () => {
   RenderFrame.start();
   AuroraBatcher.startBatch();
-  AuroraBatcher.drawQuad({
+  Draw.Quad({
     position: { x: 1000, y: 1000 },
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
@@ -65,7 +74,7 @@ const draw = () => {
     textureToUse: 1,
     bloom: 0,
   });
-  AuroraBatcher.drawQuad({
+  Draw.Quad({
     position: { x: 500, y: 100 },
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
@@ -75,7 +84,7 @@ const draw = () => {
     textureToUse: 0,
     bloom: 1,
   });
-  AuroraBatcher.drawQuad({
+  Draw.Quad({
     position: { x: 700, y: 900 },
     alpha: 255,
     crop: new Float32Array([0, 0, 1, 1]),
@@ -85,7 +94,7 @@ const draw = () => {
     textureToUse: 0,
     bloom: 0,
   });
-  AuroraBatcher.drawQuad({
+  Draw.Quad({
     position: { x: 1000, y: 1200 },
     alpha: 255,
     crop: new Float32Array([
@@ -100,32 +109,32 @@ const draw = () => {
     textureToUse: 0,
     bloom: 1,
   });
-  AuroraBatcher.drawText({
+  Draw.Text({
     alpha: 255,
     bloom: 0,
     color: new Uint8ClampedArray([80, 80, 250]),
     position: { x: 330, y: 300 },
-    text: "Twoja stara,",
+    text: "abcdefghijklmnoprstua",
     textureToUse: 0,
     weight: 1.5,
   });
-  AuroraBatcher.drawText({
+  Draw.Text({
     alpha: 255,
     bloom: 0,
     color: new Uint8ClampedArray([80, 80, 250]),
     position: { x: 330, y: 360 },
-    text: "jebie śledziem!",
+    text: "abcdefghijklmnoprstuw",
     textureToUse: 0,
     weight: 1.5,
   });
-  AuroraBatcher.drawLight({
+  Draw.Light({
     position: { x: 1000, y: 1200 },
     size: { width: 600, height: 600 },
     tint: [50, 255, 50],
     intensity: 255,
     type: "radial",
   });
-  AuroraBatcher.drawLight({
+  Draw.Light({
     position: { x: 500, y: 100 },
     size: { width: 1600, height: 600 },
     tint: [250, 240, 240],
@@ -133,44 +142,21 @@ const draw = () => {
     type: "radial",
   });
 
-  AuroraBatcher.swapToGui();
-
-  AuroraBatcher.drawQuad({
-    position: { x: 0.7, y: 0.7 },
-    alpha: 85,
-    crop: new Float32Array([0, 0, 1, 1]),
-    size: { height: 0.2, width: 0.2 },
-    tint: new Uint8ClampedArray([255, 0, 0]),
-    isTexture: 0,
-    textureToUse: 0,
-    bloom: 0,
-  });
-  AuroraBatcher.drawText({
-    position: { x: 0.55, y: 0.7 },
-    alpha: 255,
-    bloom: 0,
-    color: new Uint8ClampedArray([80, 80, 250]),
-    text: "I AM GUI!",
-    textureToUse: 0,
-    weight: 1.5,
-  });
-
-  const rend = AuroraBatcher.getRendererData;
-  const opt = AuroraBatcher.getOptionsData;
+  const rend = AuroraBatcher.getRenderData;
   RenderFrame.setGameData({
-    lightCurrent: rend.lights,
-    quadsCurrent: rend.quads,
-    lightsLimit: opt.maxLightsPerSceen,
-    quadsLimit: opt.maxQuadPerSceen,
-    blooming: opt.bloom,
-    bloomStr: opt.bloomStrength,
-    camera: opt.customCamera ? "custome" : "built-in",
-    colorCorr: rend.colorCorr,
-    globalEffect: rend.globalEffect.type,
-    globalEffectStr: rend.globalEffect.str,
-    lighting: opt.lights,
-    computeCalls: AuroraBatcher.getGPUCalls.compute,
-    drawCalls: AuroraBatcher.getGPUCalls.render,
+    lightCurrent: rend.numberOfLights,
+    quadsCurrent: rend.numberOfQuads.total,
+    lightsLimit: rend.limits.lightsPerFrame,
+    quadsLimit: rend.limits.quadsPerFrame,
+    blooming: rend.bloom.active,
+    bloomStr: rend.bloom.str,
+    camera: rend.customCamera ? "custome" : "built-in",
+    colorCorr: rend.colorCorrection,
+    globalEffect: rend.screenShader.type,
+    globalEffectStr: rend.screenShader.str,
+    lighting: rend.lighting,
+    computeCalls: rend.drawCallsInFrame.compute,
+    drawCalls: rend.drawCallsInFrame.render,
   });
   RenderFrame.swapToGPU();
   AuroraBatcher.endBatch();
