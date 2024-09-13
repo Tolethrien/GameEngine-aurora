@@ -1,0 +1,38 @@
+* {
+  padding: 0;
+  margin: 0;
+}
+html {
+  display: block;
+}
+body {
+  background-color: #2d2d2d;
+  color: wheat;
+  font-family: Arial, sans-serif;
+  align-items: center;
+  display: grid;
+  text-align: center;
+  overflow: hidden;
+  position: relative;
+}
+
+/* h1 {
+  font-size: 24px;
+  justify-self: center;
+  border: 2px solid wheat;
+  border-radius: 5px;
+  padding: 0.5em 1em;
+  margin: 2em;
+  max-width: 10em;
+  background-color: #444444;
+} */
+
+/* p {
+  font-size: 16px;
+  font-weight: bold;
+} */
+#gameEngine {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
