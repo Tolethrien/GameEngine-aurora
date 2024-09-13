@@ -1,32 +1,24 @@
-import AuroraBatcher from "../aurora/murp/batcher";
+import AuroraBatcher from "../aurora/urp/batcher";
 import Aurora from "../aurora/auroraCore";
-import AuroraTexture from "../aurora/auroraTexture";
 import char from "../assets/lamp1.png";
-import map from "../assets/lamp2.png";
 import "../index.css";
-import latoData from "../fonts/lato_regular_32.json";
-import fontLato from "../assets/lato_regular_32.png";
 import RenderFrame from "../debugger/renderStats/renderFrame";
-import BatcherData from "../aurora/murp/data";
-import Draw from "../aurora/murp/draw";
+import Draw from "../aurora/urp/draw";
 const canvas = document.getElementById("gameEngine") as HTMLCanvasElement;
 const createAurora = async () => {
   await Aurora.initialize(canvas);
-  BatcherData.initialize();
   RenderFrame.Initialize();
-  await AuroraTexture.createTextureArray({
-    label: "userTextureAtlas",
-    urls: [char, map],
-  });
-  await AuroraBatcher.loadFont(fontLato, latoData);
 
   await AuroraBatcher.createBatcher({
     backgroundColor: [0, 0, 0, 255],
     bloom: { active: true, str: 10 },
     lighting: true,
     maxLightsPerSceen: 200,
+    loadTextures: [
+      { name: "char", url: char },
+      { name: "map", url: char },
+    ],
   });
-  // AuroraBatcher.setScreenShader("sepia", 1);
   AuroraBatcher.setGlobalColorCorrection([0.1, 0.1, 0.1]);
   window.addEventListener("keypress", (e) => {
     if (e.key === "h") {
@@ -50,17 +42,16 @@ const createAurora = async () => {
         AuroraBatcher.setBloom(true, 16);
       }
     }
+    if (e.key === "b") {
+      Aurora.resizeCanvas({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
   });
   draw();
 };
 
-//
-//     if (e.key === "b") {
-//       Aurora.resizeCanvas(window.innerWidth, window.innerHeight);
-//     }
-//   });
-// draw();
-// };
 const draw = () => {
   RenderFrame.start();
   AuroraBatcher.startBatch();
@@ -81,7 +72,7 @@ const draw = () => {
     size: { height: 32, width: 32 },
     tint: new Uint8ClampedArray([255, 255, 255]),
     isTexture: 1,
-    textureToUse: 0,
+    textureToUse: 1,
     bloom: 1,
   });
   Draw.Quad({
@@ -115,8 +106,8 @@ const draw = () => {
     color: new Uint8ClampedArray([80, 80, 250]),
     position: { x: 330, y: 300 },
     text: "abcdefghijklmnoprstua",
-    textureToUse: 0,
-    weight: 1.5,
+    fontFace: "roboto",
+    fontSize: 30,
   });
   Draw.Text({
     alpha: 255,
@@ -124,8 +115,8 @@ const draw = () => {
     color: new Uint8ClampedArray([80, 80, 250]),
     position: { x: 330, y: 360 },
     text: "abcdefghijklmnoprstuw",
-    textureToUse: 0,
-    weight: 1.5,
+    fontFace: "roboto",
+    fontSize: 30,
   });
   Draw.Light({
     position: { x: 1000, y: 1200 },

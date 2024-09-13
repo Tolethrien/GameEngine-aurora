@@ -3,7 +3,7 @@ import Aurora from "../../auroraCore";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import layeredShader from "../../shaders/layered.wgsl?raw";
+import layeredShader from "../shaders/layered.wgsl?raw";
 import Batcher from "../batcher";
 export type ScreenEffects = keyof typeof LayeredTestPipeline.getEffectList;
 export default class LayeredTestPipeline {
@@ -16,6 +16,7 @@ export default class LayeredTestPipeline {
     invert: 3,
     chromaticAbber: 4,
     vignette: 5,
+    noice: 6,
   };
   public static createPipeline() {
     this.globalEffect = new Float32Array([0, 0]);
@@ -60,11 +61,6 @@ export default class LayeredTestPipeline {
             visibility: GPUShaderStage.FRAGMENT,
             texture: { viewDimension: "2d" },
           },
-          {
-            binding: 6,
-            visibility: GPUShaderStage.FRAGMENT,
-            texture: { viewDimension: "2d" },
-          },
         ],
         label: "compositionTextureBindLayout",
       },
@@ -78,36 +74,30 @@ export default class LayeredTestPipeline {
           },
           {
             binding: 1,
-            resource:
-              AuroraTexture.getTexture("treshholdTexture").texture.createView(),
-          },
-          {
-            binding: 2,
             resource: AuroraTexture.getTexture(
-              "bloomPassOneTexture"
+              "offscreenTextureFloat"
             ).texture.createView(),
           },
           {
-            binding: 3,
+            binding: 2,
             resource: AuroraTexture.getTexture(
               "bloomPassTwoTexture"
             ).texture.createView(),
           },
           {
-            binding: 4,
+            binding: 3,
             resource:
               AuroraTexture.getTexture("lightsTexture").texture.createView(),
           },
           {
-            binding: 5,
+            binding: 4,
             resource:
               AuroraTexture.getTexture("compositeTexture").texture.createView(),
           },
           {
-            binding: 6,
-            resource: AuroraTexture.getTexture(
-              "offscreenTextureFloat"
-            ).texture.createView(),
+            binding: 5,
+            resource:
+              AuroraTexture.getTexture("GUITexture").texture.createView(),
           },
         ],
       },
@@ -146,9 +136,7 @@ export default class LayeredTestPipeline {
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
-        "presentPipelineLayout"
-      ),
+      pipelineLayout: AuroraPipeline.getPipelineLayout("presentPipelineLayout"),
       pipelineName: "presentPipeline",
 
       shader: AuroraShader.getSader("layeredTestShader"),

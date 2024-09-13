@@ -8,7 +8,7 @@ interface DynamicBufferOptions {
 }
 interface MapedBufferOptions {
   bufferType: bufferType;
-  type: keyof typeof TYPED_MAP;
+  dataType: keyof typeof TYPED_MAP;
   data: number[];
   label: string;
   storeInMap?: boolean;
@@ -46,14 +46,17 @@ export default class AuroraBuffer {
     settings.storeInMap && this.createdBuffers.set(settings.label, buffer);
     return buffer;
   }
-  public static createBufferMaped(settings: MapedBufferOptions) {
+  public static createMapedBuffer(settings: MapedBufferOptions) {
     const buffer = Aurora.device.createBuffer({
       label: settings.label ?? "generic vertex buffer",
-      size: TYPED_MAP[settings.type].BYTES_PER_ELEMENT * settings.data.length,
+      size:
+        TYPED_MAP[settings.dataType].BYTES_PER_ELEMENT * settings.data.length,
       usage: USAGE_MAP.maped[settings.bufferType],
       mappedAtCreation: true,
     });
-    new TYPED_MAP[settings.type](buffer.getMappedRange()).set(settings.data);
+    new TYPED_MAP[settings.dataType](buffer.getMappedRange()).set(
+      settings.data
+    );
     buffer.unmap();
     settings.storeInMap && this.createdBuffers.set(settings.label, buffer);
     return buffer;

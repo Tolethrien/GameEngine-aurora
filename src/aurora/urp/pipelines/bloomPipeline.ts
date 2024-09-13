@@ -2,7 +2,7 @@ import AuroraBuffer from "../../auroraBuffer";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import blurShader from "../../shaders/blur.wgsl?raw";
+import blurShader from "../shaders/blur.wgsl?raw";
 import Aurora from "../../auroraCore";
 import Batcher from "../batcher";
 
@@ -134,9 +134,7 @@ export default class BloomPipeline {
 
     AuroraPipeline.createComputePipeline({
       pipelineName: "bloomPipeline",
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
-        "bloomXPipelineLayout"
-      ),
+      pipelineLayout: AuroraPipeline.getPipelineLayout("bloomXPipelineLayout"),
       shader: AuroraShader.getSader("bloomShader"),
     });
   }

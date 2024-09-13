@@ -13,7 +13,8 @@ export default class AuroraShader {
     );
   }
   public static getSader(shaderName: string) {
-    if (this.shaders.has(shaderName)) return this.shaders.get(shaderName);
-    else throw new Error(`no render pipeline with that name: ${shaderName}`);
+    if (!this.shaders.has(shaderName))
+      throw new Error(`no render pipeline with that name: ${shaderName}`);
+    return this.shaders.get(shaderName)!;
   }
 }

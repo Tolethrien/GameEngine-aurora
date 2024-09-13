@@ -1,5 +1,5 @@
-import Mat4 from "../math/mat4";
-import Aurora from "./auroraCore";
+import Mat4 from "../../math/mat4";
+import Aurora from "../auroraCore";
 type CameraZoom = { current: number; max: number; min: number };
 type CameraPosition = { x: number; y: number };
 const cameraData = {

@@ -2,7 +2,7 @@ import AuroraBuffer from "../../auroraBuffer";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import compositionShader from "../../shaders/compositionShader.wgsl?raw";
+import compositionShader from "../shaders/compositionShader.wgsl?raw";
 import Aurora from "../../auroraCore";
 import Batcher from "../batcher";
 
@@ -98,7 +98,7 @@ export default class CompositePipeline {
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
+      pipelineLayout: AuroraPipeline.getPipelineLayout(
         "compositionPipelineLayout"
       ),
       pipelineName: "compositionPipeline",

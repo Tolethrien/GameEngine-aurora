@@ -2,7 +2,7 @@ import AuroraBuffer from "../../auroraBuffer";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import offscreenShader from "../../shaders/universalShader.wgsl?raw";
+import offscreenShader from "../shaders/universalShader.wgsl?raw";
 import Aurora from "../../auroraCore";
 import Batcher from "../batcher";
 
@@ -17,7 +17,7 @@ export default class OffscreenPipeline {
       Batcher.getRenderData.limits.quadsPerFrame * Batcher.getStride.vertices
     );
     this.addData = new Uint32Array(
-      Batcher.getRenderData.limits.quadsPerFrame * Batcher.getStride.addData
+      Batcher.getRenderData.limits.quadsPerFrame * Batcher.getStride.gameAddData
     );
     AuroraPipeline.createVertexBufferLayout("offscreenVertexBufferLayout", {
       arrayStride: Batcher.getStride.vertices * Float32Array.BYTES_PER_ELEMENT,
@@ -41,7 +41,8 @@ export default class OffscreenPipeline {
       ],
     });
     AuroraPipeline.createVertexBufferLayout("offscreenaddDataBufferLayout", {
-      arrayStride: Batcher.getStride.addData * Uint32Array.BYTES_PER_ELEMENT,
+      arrayStride:
+        Batcher.getStride.gameAddData * Uint32Array.BYTES_PER_ELEMENT,
       stepMode: "instance",
       attributes: [
         {
@@ -109,7 +110,7 @@ export default class OffscreenPipeline {
           {
             binding: 1,
             resource:
-              AuroraTexture.getTexture("userTextureAtlas").texture.createView(),
+              AuroraTexture.getTexture("TextureBatchGame").texture.createView(),
           },
         ],
       },
@@ -140,7 +141,8 @@ export default class OffscreenPipeline {
           },
           {
             binding: 1,
-            resource: AuroraTexture.getTexture("fonts").texture.createView(),
+            resource:
+              AuroraTexture.getTexture("batcherFonts").texture.createView(),
           },
         ],
       },
@@ -159,7 +161,7 @@ export default class OffscreenPipeline {
       buffers: AuroraPipeline.getVertexBufferLayoutGroup(
         "offscreenBuffersGroupLayout"
       ),
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
+      pipelineLayout: AuroraPipeline.getPipelineLayout(
         "offscreenPipelineLayout"
       ),
       pipelineName: "offscreenPipeline",

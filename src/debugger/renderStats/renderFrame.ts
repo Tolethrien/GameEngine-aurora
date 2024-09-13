@@ -19,11 +19,12 @@ interface GameData {
     | "vignette"
     | "chromaticAbber"
     | "grayscale"
-    | "none";
+    | "none"
+    | "noice";
   globalEffectStr: number;
   bloomStr: number;
   lighting: boolean;
-  colorCorr: [number, number, number];
+  colorCorr: number[];
   camera: "custome" | "built-in";
   drawCalls: number;
   computeCalls: number;

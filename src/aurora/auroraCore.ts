@@ -48,8 +48,8 @@ export default class Aurora {
     Aurora.context = context;
     Aurora.device = device;
   }
-  public static resizeCanvas(width: number, height: number) {
-    Aurora.canvas.width = width;
-    Aurora.canvas.height = height;
+  public static resizeCanvas(size: Size2D) {
+    Aurora.canvas.width = size.width;
+    Aurora.canvas.height = size.height;
   }
 }

@@ -3,13 +3,14 @@ import Aurora from "../../auroraCore";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import postProcessShader from "../../shaders/postProcess.wgsl?raw";
+import postProcessShader from "../shaders/postProcess.wgsl?raw";
 import Batcher from "../batcher";
 export type ScreenEffects = keyof typeof PresentationPipeline.getEffectList;
 
 export default class PresentationPipeline {
   public static globalEffectBuffer: GPUBuffer;
   public static globalEffect: Float32Array;
+
   private static avalibleScreenEffects = {
     none: 0,
     grayscale: 1,
@@ -17,6 +18,7 @@ export default class PresentationPipeline {
     invert: 3,
     chromaticAbber: 4,
     vignette: 5,
+    noice: 6,
   };
   public static createPipeline() {
     this.globalEffect = new Float32Array([0, 0]);
@@ -25,6 +27,7 @@ export default class PresentationPipeline {
       label: "globalEffectBuffer",
       typedArr: this.globalEffect,
     });
+
     AuroraShader.addShader("postProcessShader", postProcessShader);
     AuroraPipeline.addBindGroup({
       name: "compositionTextureBind",
@@ -49,6 +52,7 @@ export default class PresentationPipeline {
         ],
       },
     });
+
     AuroraPipeline.addBindGroup({
       name: "globalEffectBind",
       layout: {
@@ -83,9 +87,7 @@ export default class PresentationPipeline {
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
-        "presentPipelineLayout"
-      ),
+      pipelineLayout: AuroraPipeline.getPipelineLayout("presentPipelineLayout"),
       pipelineName: "presentPipeline",
 
       shader: AuroraShader.getSader("postProcessShader"),
@@ -107,6 +109,7 @@ export default class PresentationPipeline {
       0,
       this.globalEffect
     );
+
     AuroraPipeline.getBindsFromLayout("presentPipelineLayout").forEach(
       (bind, index) => {
         commandPass.setBindGroup(index, bind);

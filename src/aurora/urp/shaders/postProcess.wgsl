@@ -30,14 +30,16 @@ return out;
 @fragment
 fn fragmentMain(props:VertexOutput) -> @location(0) vec4f{
 var output:vec4f;
+  
 
-  if(u32(effectType.x) == 1){output = grayscale(props.coords,effectType.y);}
-else if(u32(effectType.x) == 2){output = sepia(props.coords,effectType.y);}
-else if(u32(effectType.x) == 3){output = invert(props.coords,effectType.y);}
-else if(u32(effectType.x) == 4){output = chroma(props.coords,effectType.y);}
-else if(u32(effectType.x) == 5){output = vignette(props.coords,effectType.y);}
-else {output = textureSampleLevel(compositionTexture,textureSampOne,props.coords,0);}
-
+    if(u32(effectType.x) == 1){output = grayscale(props.coords,effectType.y);}
+    else if(u32(effectType.x) == 2){output = sepia(props.coords,effectType.y);}
+    else if(u32(effectType.x) == 3){output = invert(props.coords,effectType.y);}
+    else if(u32(effectType.x) == 4){output = chroma(props.coords,effectType.y);}
+    else if(u32(effectType.x) == 5){output = vignette(props.coords,effectType.y);}
+    else if(u32(effectType.x) == 6){output = noice(props.coords,effectType.y);}
+    else {output = textureSampleLevel(compositionTexture,textureSampOne,props.coords,0);}
+  
 return output;
 }
 fn sepia(coords:vec2f,intensity:f32) -> vec4f{
@@ -78,7 +80,13 @@ fn vignette(coords:vec2f,intensity:f32) -> vec4f {
   var color: vec4<f32> = textureSampleLevel(compositionTexture, textureSampOne, coords,0);
   return vec4f(mix(color.rgb * vignette, vignette_color, 1.0 - vignette) * intensity,color.a);
 }
-
+fn noice(coords:vec2f,intensity:f32) -> vec4f {
+  var color: vec4f = textureSampleLevel(compositionTexture, textureSampOne, coords,0);
+  let noise: f32 = fract(sin(dot(coords, vec2f(12.9898, 78.233))) * 43758.5453);
+  let noiseColor = vec3f(0.25);
+  let out = vec4f(color.rgb + noise * noiseColor,color.a);
+  return out;
+}
 
 
 

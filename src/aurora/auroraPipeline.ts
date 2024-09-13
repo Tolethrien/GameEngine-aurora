@@ -19,7 +19,8 @@ type ColorAttachments =
   | "oversaturated"
   | "standard"
   | "storage-read-write"
-  | "post-process";
+  | "post-process"
+  | "test-standard";
 export default class AuroraPipeline {
   private static pipelineList: PipeList = new Map();
   private static bindGroups: BindGroup = new Map();
@@ -42,12 +43,12 @@ export default class AuroraPipeline {
     return [entriesOut, layoutOut];
   }
   public static getBindsFromLayout(layoutName: string) {
-    const binds = this.pipelineLeyouts.get(layoutName).associateBinds;
+    const binds = this.pipelineLeyouts.get(layoutName)?.associateBinds;
     if (!binds)
       throw new Error(
         "AuroraBatcher: you trying to set bind layout that dont exist "
       );
-    return binds.map((bind) => this.bindGroups.get(bind).bind);
+    return binds.map((bind) => this.bindGroups.get(bind)!.bind);
   }
   public static createVertexBufferLayout(
     layoutName: string,
@@ -65,10 +66,12 @@ export default class AuroraPipeline {
     });
     this.vertexBuffersLeyoutGroups.set(groupName, vblList);
   }
+
   public static getVertexBufferLayoutGroup(groupName: string) {
     const group = this.vertexBuffersLeyoutGroups.get(groupName);
-    if (!group) throw new Error("not grup");
-    return group.map((name) => this.vertexBuffersLeyouts.get(name));
+    if (!group)
+      throw new Error(`no vertext buffer layout group with name ${groupName}`);
+    return group.map((name) => this.vertexBuffersLeyouts.get(name)!);
   }
   public static createPipelineLayout(layoutName: string, bindGrous: string[]) {
     bindGrous.forEach((bind) => {
@@ -76,7 +79,7 @@ export default class AuroraPipeline {
         throw new Error(`bind group with name ${bind} dont exist`);
     });
     const pipe = bindGrous.reduce(
-      (acc, bind) => acc.concat(this.bindGroups.get(bind).layout),
+      (acc, bind) => acc.concat(this.bindGroups.get(bind)!.layout),
       [] as GPUBindGroupLayout[]
     );
     this.pipelineLeyouts.set(layoutName, {
@@ -116,8 +119,8 @@ export default class AuroraPipeline {
       })
     );
   }
-  public static getRenderPipelineLayout(layoutName: string) {
-    const layout = this.pipelineLeyouts.get(layoutName).layout;
+  public static getPipelineLayout(layoutName: string) {
+    const layout = this.pipelineLeyouts.get(layoutName)?.layout;
     if (!layout)
       throw new Error(
         `No bind layout(render pipeline layout) with this name: ${layoutName} in Aurora Bind Group`
@@ -175,8 +178,8 @@ export default class AuroraPipeline {
               operation: "add",
             },
             alpha: {
-              srcFactor: "src-alpha",
-              dstFactor: "one-minus-src-alpha",
+              srcFactor: "one",
+              dstFactor: "one",
               operation: "add",
             },
           },
@@ -193,6 +196,23 @@ export default class AuroraPipeline {
             },
             alpha: {
               srcFactor: "one",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+          },
+        };
+      case "test-standard":
+        return {
+          format: navigator.gpu.getPreferredCanvasFormat(),
+          writeMask: GPUColorWrite.ALL,
+          blend: {
+            color: {
+              srcFactor: "src-alpha",
+              dstFactor: "one-minus-src-alpha",
+              operation: "add",
+            },
+            alpha: {
+              srcFactor: "src-alpha",
               dstFactor: "one-minus-src-alpha",
               operation: "add",
             },

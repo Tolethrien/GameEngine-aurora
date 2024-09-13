@@ -1,7 +1,7 @@
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import tresholdShader from "../../shaders/treshold.wgsl?raw";
+import tresholdShader from "../shaders/treshold.wgsl?raw";
 import Aurora from "../../auroraCore";
 import Batcher from "../batcher";
 
@@ -47,7 +47,7 @@ export default class TresholdPipeline {
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: [],
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
+      pipelineLayout: AuroraPipeline.getPipelineLayout(
         "tresholdPipelineLayout"
       ),
       pipelineName: "tresholdPipeline",

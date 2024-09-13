@@ -34,10 +34,18 @@ textureCoords: vec2f
 };
 @vertex
 fn vertexMain(props:VertexInput) -> VertexOutput {
-let data = getVertexData(props.vi,props.pos,props.size,props.crop);
  var out: VertexOutput;
- out.pos = camera * data.position;
+  if(props.isGlyph == 1){
+  out.pos = getVertexTextPosition(props.vi,props.pos,props.size);
+  // out.pos.y = -out.pos.y;
+  out.textureCoord = getTextureCoords(props.vi,props.crop);
+  }
+  else{
+let data = getVertexData(props.vi,props.pos,props.size,props.crop);
  out.textureCoord = data.textureCoords;
+ out.pos = data.position;
+  }
+ out.pos = camera * out.pos;
  out.color = props.color;
  out.textureIndex = props.textureIndex;
  out.isTexture = props.isTexture;
@@ -59,7 +67,7 @@ if(props.isGlyph == 0){
   }
 }
 else{
-  return getGlyph(convertedColor,props.bloom,props.textureCoord,i32(props.textureIndex));
+  return getGlyph(convertedColor,props.bloom,props.textureCoord,props.isTexture,props.textureIndex);
 }
 }
 
@@ -107,19 +115,46 @@ out.one = finalColor;
     return out;
 
 }
-fn getGlyph(color:vec4f,bloom:u32,textureCoords:vec2f,textureIndex:i32) -> FragmenOut{
-let glyph = textureSampleLevel(textTextures,textSampler,textureCoords,textureIndex,0);
+fn getGlyph(color:vec4f,bloom:u32,textureCoords:vec2f,font:u32,textureIndex:u32) -> FragmenOut{
+// let glyph = textureSampleLevel(textTextures,textSampler,textureCoords,textureIndex,0);
 var out:FragmenOut;
-let finalColor = glyph * color;
-out.one = finalColor;
-  if(bloom == 0){
-    out.two = finalColor;
+// let finalColor = glyph * color;
+// out.one = finalColor;
+//   if(bloom == 0){
+//     out.two = finalColor;
+//   }
+//   else{
+//     out.two = vec4f(finalColor.rgb+2,finalColor.a);
+//   }
+//     return out;
+let distance = textureSampleLevel(textTextures, textSampler, textureCoords,textureIndex,0).a;
+      let fontSize = f32(font);
+      //0.4-0.1 kontroluje rozmycie w zaleznosci od wielkosci fontu
+      var width = mix(0.4, 0.1, clamp(fontSize, 0, 40) / 40.0);
+      let alpha = color.a * smoothstep(0.5 - width, 0.5 + width, distance);
+        // return vec4f(color.rgb, alpha);
+out.one = vec4f(color.rgb, alpha);
+out.two = vec4f(color.rgb+2, alpha);
+return out;
+}
+fn getVertexTextPosition(index: u32, pos: vec2f, size: vec2f) -> vec4f {
+// let pos = vec2f(pos.x - size.x / 2.0, pos.y - size.y / 2.0);
+  switch(index) {
+    case 0 { return vec4f(pos.x, pos.y, 0, 1); }
+    case 1 { return vec4f(pos.x + size.x, pos.y, 0, 1); }
+    case 2 { return vec4f(pos.x, pos.y + size.y, 0, 1); }
+    case 3 { return vec4f(pos.x + size.x, pos.y + size.y, 0, 1); }
+    default { return vec4f(0, 0, 0, 0); }
   }
-  else{
-    out.two = vec4f(finalColor.rgb+2,finalColor.a);
+}
+fn getTextureCoords(index: u32, crop: vec4f) -> vec2f {
+  switch(index) {
+    case 0 { return vec2f(crop.x, crop.y); }
+    case 1 { return vec2f(crop.z, crop.y); }
+    case 2 { return vec2f(crop.x, crop.w); }
+    case 3 { return vec2f(crop.z, crop.w); }
+    default { return vec2f(0, 0); }
   }
-    return out;
-
 }
 
 

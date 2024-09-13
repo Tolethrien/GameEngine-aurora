@@ -2,7 +2,7 @@ import AuroraBuffer from "../../auroraBuffer";
 import AuroraPipeline from "../../auroraPipeline";
 import AuroraShader from "../../auroraShader";
 import AuroraTexture from "../../auroraTexture";
-import lightsShader from "../../shaders/lights.wgsl?raw";
+import lightsShader from "../shaders/lights.wgsl?raw";
 import Aurora from "../../auroraCore";
 import Batcher from "../batcher";
 
@@ -100,9 +100,7 @@ export default class LightsPipeline {
     ]);
     AuroraPipeline.createRenderPipeline({
       buffers: AuroraPipeline.getVertexBufferLayoutGroup("lightsBuffersLayout"),
-      pipelineLayout: AuroraPipeline.getRenderPipelineLayout(
-        "lightsPipelineLayout"
-      ),
+      pipelineLayout: AuroraPipeline.getPipelineLayout("lightsPipelineLayout"),
       pipelineName: "lightsPipeline",
       colorTargets: [AuroraPipeline.getColorTargetTemplate("post-process")],
 

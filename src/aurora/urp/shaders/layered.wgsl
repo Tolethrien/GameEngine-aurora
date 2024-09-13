@@ -1,12 +1,11 @@
 @group(0) @binding(0) var<uniform> effectType: vec2f;
 @group(0) @binding(1) var textureSampOne: sampler;
 @group(1) @binding(0) var textureNormal: texture_2d<f32>;
-@group(1) @binding(1) var textureTreshold: texture_2d<f32>;
-@group(1) @binding(2) var textureBlurOne: texture_2d<f32>;
-@group(1) @binding(3) var textureBlurTwo: texture_2d<f32>;
-@group(1) @binding(4) var textureLights: texture_2d<f32>;
-@group(1) @binding(5) var textureComposition: texture_2d<f32>;
-@group(1) @binding(6) var textureSaturated: texture_2d<f32>;
+@group(1) @binding(1) var textureSaturated: texture_2d<f32>;
+@group(1) @binding(2) var textureBlurTwo: texture_2d<f32>;
+@group(1) @binding(3) var textureLights: texture_2d<f32>;
+@group(1) @binding(4) var textureComposition: texture_2d<f32>;
+@group(1) @binding(5) var guiTexture: texture_2d<f32>;
 
 struct VertexInput {
   @builtin(vertex_index) vi: u32,
@@ -69,8 +68,7 @@ let coords = props.coords/scale;
 
 var normal = textureSample(textureNormal,textureSampOne,coords);
 var sat = textureSample(textureSaturated,textureSampOne,coords);
-var tresh = textureSample(textureTreshold,textureSampOne,coords);
-var blurOne = textureSample(textureBlurOne,textureSampOne,coords);
+var gui = textureSample(guiTexture,textureSampOne,coords);
 var blurTwo = textureSample(textureBlurTwo,textureSampOne,coords);
 var compo = textureSample(textureComposition,textureSampOne,coords);
 var light = textureSample(textureLights,textureSampOne,coords);
@@ -88,28 +86,40 @@ else{
 }
 }
 else if(props.instance == 2){
-  output = tresh;
-}
-else if(props.instance == 3){
-  output = blurOne;
-}
-else if(props.instance == 4){
   output = blurTwo;
 }
-else if(props.instance == 5){
+else if(props.instance == 3){
   output = light;
 }
-else if(props.instance == 6){
+else if(props.instance == 4){
   output = compo;
 }
-else if(props.instance == 7){
-  if(u32(effectType.x) == 1){output = grayscale(coords,effectType.y);}
+else if(props.instance == 5){
+    if(u32(effectType.x) == 1){output = grayscale(coords,effectType.y);}
 else if(u32(effectType.x) == 2){output = sepia(coords,effectType.y);}
 else if(u32(effectType.x) == 3){output = invert(coords,effectType.y);}
 else if(u32(effectType.x) == 4){output = chroma(coords,effectType.y);}
 else if(u32(effectType.x) == 5){output = vignette(coords,effectType.y);}
 else {output = textureSampleLevel(textureComposition,textureSampOne,coords,0);}
-  // output = chroma(compo,props.coords,effectType.y);
+}
+else if(props.instance == 6){
+  output = gui;
+}
+else if(props.instance == 7){
+if(gui.a == 1){
+    output = gui;
+  }
+  else{
+    if(u32(effectType.x) == 1){output = grayscale(coords,effectType.y);}
+    else if(u32(effectType.x) == 2){output = sepia(coords,effectType.y);}
+    else if(u32(effectType.x) == 3){output = invert(coords,effectType.y);}
+    else if(u32(effectType.x) == 4){output = chroma(coords,effectType.y);}
+    else if(u32(effectType.x) == 5){output = vignette(coords,effectType.y);}
+    else {output = textureSampleLevel(textureComposition,textureSampOne,coords,0);}
+    if(gui.a != 0){
+       output = mix(output, gui, gui.a);
+    }
+  }
 }
 else{
   output = vec4f(0,0,0,1);
